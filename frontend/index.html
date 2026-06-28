@@ -8,6 +8,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .auth-tabs{display:flex;gap:4px;background:#F4F3F0;border:1px solid #ECEBE7;border-radius:11px;padding:4px;margin-bottom:18px}
+  .atab{all:unset;cursor:pointer;flex:1;text-align:center;padding:9px;border-radius:8px;font-size:13.5px;font-weight:600;color:#71717A}
+  .atab.on{background:#fff;color:#18181B;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .afield{margin-bottom:12px;text-align:left}
+  .afield label{display:block;font-size:12px;font-weight:600;color:#3f3f46;margin-bottom:5px}
+  .afield input{width:100%;box-sizing:border-box;border:1px solid #ECEBE7;border-radius:10px;padding:12px 13px;font-size:14px;font-family:'Inter',sans-serif}
+  .afield input:focus{outline:none;border-color:#4F46E5;box-shadow:0 0 0 3px #EEF0FE}
+  #authMsg{font-size:12.5px;margin:6px 0 10px;min-height:16px;color:#DC2626}
+  .auth-foot{margin-top:16px;font-size:12.5px;color:#71717A}
+  .auth-foot a{color:#4F46E5;cursor:pointer;font-weight:600}
+  .auth-card #authSubmit{width:100%;box-sizing:border-box}
+</style>
 <style>
   :root{
     --bg:#FAFAF9;--card:#FFFFFF;--ink:#18181B;--muted:#71717A;--faint:#A1A1AA;
@@ -196,16 +210,16 @@
 <!-- AUTH -->
 <div class="auth" id="auth"><div class="auth-card">
   <div class="logo"><div class="m">B</div><b>Bookmyexam<i>.in</i></b></div>
-  <h1>Sign in to continue</h1><p class="lead">Daily quizzes, weekly mega tests and rank analytics for government-exam aspirants.</p>
-  <button class="gbtn" onclick="openG()"><svg class="gic" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continue with Google</button>
-  <div class="auth-or">demo shortcuts</div>
-  <div class="demo"><button onclick="login('student')">Enter as Student</button><button class="adm" onclick="login('admin')">Enter as Admin</button></div>
-</div></div>
-<div class="gsheet-bg" id="gsheet"><div class="gsheet">
-  <div class="gl"><svg width="15" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Sign in with Google</div>
-  <h3>Choose an account</h3>
-  <div class="gacct" onclick="login('student')"><div class="av">AK</div><div><div class="nm">Arjun Kumar</div><div class="em">arjun.kumar@gmail.com</div></div></div>
-  <div class="gacct" onclick="login('student')"><div class="av" style="background:var(--green)">+</div><div><div class="nm">Use another account</div><div class="em">Sign up with a new Gmail</div></div></div>
+  <h1>Welcome</h1><p class="lead">Sign in or create your account to start practising.</p>
+  <div class="auth-tabs"><button class="atab on" data-t="in" onclick="authTab('in')">Sign in</button><button class="atab" data-t="up" onclick="authTab('up')">Create account</button></div>
+  <div class="afield" id="nameField" style="display:none"><label>Full name</label><input id="inName" type="text" placeholder="Your name"></div>
+  <div class="afield"><label>Email</label><input id="inEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+  <div class="afield"><label>Password</label><input id="inPass" type="password" placeholder="At least 6 characters" autocomplete="current-password"></div>
+  <div id="authMsg"></div>
+  <button class="btn pri" id="authSubmit" data-mode="in" onclick="authSubmit()">Sign in</button>
+  <div class="auth-or">or</div>
+  <button class="gbtn" onclick="googleAuth()"><svg class="gic" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continue with Google</button>
+  <div class="auth-foot">Just exploring? Open demo as <a onclick="login('student')">student</a> · <a onclick="login('admin')">admin</a> <span style="color:var(--faint)">(not saved)</span></div>
 </div></div>
 
 <!-- APP -->
@@ -436,9 +450,8 @@ const NAVS={
   admin:[['adm-overview','◈','Overview'],['adm-create','✚','Create test'],['adm-concepts','▷','Concepts'],['adm-banners','▭','Banners'],['adm-affairs','▤','Affairs'],['adm-settings','⚙','Settings']]
 };
 let ROLE='student';
-function openG(){document.getElementById('gsheet').classList.add('show');}
-document.getElementById('gsheet').onclick=e=>{if(e.target.id==='gsheet')e.target.classList.remove('show');};
-function login(role){ROLE=role;document.getElementById('gsheet').classList.remove('show');document.getElementById('auth').style.display='none';document.getElementById('app').classList.add('show');buildShell();go(role==='admin'?'adm-overview':'dashboard');if(role==='student'){initCharts();renderConcepts();renderLB('Daily');renderBanners();applyRankVisibility();}if(role==='admin'){onCadence();renderBuilt();renderAdmConcepts();renderAdmBanners();}}
+function openG(){}
+function login(role){ROLE=role;document.getElementById('auth').style.display='none';document.getElementById('app').classList.add('show');buildShell();go(role==='admin'?'adm-overview':'dashboard');if(role==='student'){initCharts();renderConcepts();renderLB('Daily');renderBanners();applyRankVisibility();}if(role==='admin'){onCadence();renderBuilt();renderAdmConcepts();renderAdmBanners();}}
 function logout(){document.getElementById('app').classList.remove('show');document.getElementById('auth').style.display='';window.scrollTo(0,0);}
 function buildShell(){
   const pill=document.getElementById('rolePill');pill.className='role-pill '+(ROLE==='admin'?'adm':'stu');pill.textContent=ROLE==='admin'?'Admin':'Student';
@@ -684,6 +697,256 @@ function renderAdmConcepts(){
 
 /* ===== INIT ===== */
 quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
+</script>
+
+<script>
+/* __INTEGRATION__ */
+/* ============================================================
+   Bookmyexam.in — live integration layer
+   Wires the prototype UI to the FastAPI backend + Supabase Auth.
+   Overrides selected functions from the main script (which are global)
+   and reassigns the mock data arrays with real API data after login.
+   ============================================================ */
+(function () {
+  var SB = null, TOKEN = null;
+  window.ME = null;            // profile from /api/me
+  window.DEMO = false;
+
+  /* ---------- API helper ---------- */
+  async function api(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+    Object.assign(headers, opts.headers || {});
+    var r = await fetch(path, Object.assign({}, opts, { headers: headers }));
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()));
+    return r.json();
+  }
+  window._api = api;
+
+  function fmtDate(d) { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return d; } }
+  function initials(s) { s = s || 'U'; var p = String(s).split(/[ @.]/).filter(Boolean); return ((p[0] && p[0][0] || 'U') + (p[1] && p[1][0] || '')).toUpperCase(); }
+  function authMsg(t, ok) { var e = document.getElementById('authMsg'); if (!e) return; e.textContent = t || ''; e.style.color = ok ? 'var(--green)' : 'var(--red)'; }
+
+  /* ---------- Supabase boot ---------- */
+  async function boot() {
+    try {
+      var cfg = await fetch('/api/config').then(function (r) { return r.json(); });
+      if (window.supabase && cfg.supabase_url && cfg.supabase_anon_key) {
+        SB = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+        var s = (await SB.auth.getSession()).data.session;
+        SB.auth.onAuthStateChange(function (_e, sess) { TOKEN = sess ? sess.access_token : null; });
+        if (s) { TOKEN = s.access_token; await enterApp(); }
+      }
+    } catch (e) { console.warn('boot failed', e); }
+  }
+
+  /* ---------- auth UI ---------- */
+  window.authTab = function (which) {
+    document.querySelectorAll('.atab').forEach(function (b) { b.classList.toggle('on', b.dataset.t === which); });
+    document.getElementById('nameField').style.display = which === 'up' ? 'block' : 'none';
+    var btn = document.getElementById('authSubmit'); btn.textContent = which === 'up' ? 'Create account' : 'Sign in'; btn.dataset.mode = which;
+    authMsg('');
+  };
+  window.authSubmit = async function () {
+    if (!SB) { authMsg('Backend is waking up — wait a few seconds and try again.'); return; }
+    var mode = document.getElementById('authSubmit').dataset.mode || 'in';
+    var email = document.getElementById('inEmail').value.trim();
+    var pass = document.getElementById('inPass').value;
+    if (!email || !pass) { authMsg('Enter your email and password.'); return; }
+    authMsg('Please wait…', true);
+    try {
+      if (mode === 'up') {
+        var name = document.getElementById('inName').value.trim();
+        var r = await SB.auth.signUp({ email: email, password: pass, options: { data: { full_name: name } } });
+        if (r.error) throw r.error;
+        if (!r.data.session) { authMsg('Account created. If email confirmation is on, confirm via the email, then sign in.', true); window.authTab('in'); return; }
+        TOKEN = r.data.session.access_token;
+      } else {
+        var r2 = await SB.auth.signInWithPassword({ email: email, password: pass });
+        if (r2.error) throw r2.error;
+        TOKEN = r2.data.session.access_token;
+      }
+      await enterApp();
+    } catch (e) { authMsg(e.message || 'Authentication failed'); }
+  };
+  window.googleAuth = async function () {
+    if (!SB) { authMsg('Backend waking up — try again shortly.'); return; }
+    var r = await SB.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+    if (r.error) authMsg('Google sign-in is not enabled yet — use email for now.');
+  };
+  window.doSignOut = async function () { try { if (SB) await SB.auth.signOut(); } catch (e) {} TOKEN = null; window.ME = null; location.hash = ''; document.getElementById('app').classList.remove('show'); document.getElementById('auth').style.display = ''; };
+
+  /* ---------- enter app after auth ---------- */
+  async function enterApp() {
+    try { window.ME = await api('/api/me'); } catch (e) { authMsg('Could not load your profile: ' + e.message); return; }
+    window.DEMO = false;
+    ROLE = window.ME.role === 'admin' ? 'admin' : 'student';
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    buildShell();
+    if (ROLE === 'student') {
+      var fn = window.ME.full_name || window.ME.email || 'Aspirant';
+      document.getElementById('greeting').textContent = 'Welcome, ' + String(fn).split(' ')[0];
+      document.getElementById('subtitle').textContent = (window.ME.target_exam || 'Government exams') + (window.ME.state ? ' · ' + window.ME.state : '');
+      var planLabel = window.ME.plan === 'free' ? 'Free plan' : (window.ME.plan.charAt(0).toUpperCase() + window.ME.plan.slice(1) + ' plan');
+      document.getElementById('topRight').innerHTML = '<span class="chip">' + planLabel + '</span><div class="avatar">' + initials(fn) + '</div>';
+      document.getElementById('sideFoot').innerHTML = '<div class="plan-box"><div class="pl">Plan</div><div class="pt">' + planLabel + '</div></div><button class="logout" onclick="doSignOut()">↩ Sign out</button>';
+      initCharts();
+    } else {
+      document.getElementById('sideFoot').innerHTML = '<button class="logout" onclick="doSignOut()">↩ Sign out</button>';
+      onCadence(); renderBuilt();
+    }
+    await hydrate();
+    routeFromHash();
+  }
+
+  /* ---------- load real data ---------- */
+  function mapConcept(c) { return { id: c.id, title: c.title, subj: c.subject, vid: c.video_url || '', notes: c.notes || '', access: c.access, viewable: c.viewable }; }
+  function mapBanner(b) { return { id: b.id, img: b.image_url, link: b.link_url, title: b.title }; }
+  function mapTest(t) {
+    return { id: t.id, type: t.title || t.type, label: '', sub: '', month: t.month || 'Other', meta: t.meta || '',
+      status: t.completed ? 'done' : 'live', owned: !!t.owned, locked: !!t.locked, score: 0,
+      price: Math.round((t.price_paise || 0) / 100), kind: t.type, note: t.go_live_at ? ('Live ' + fmtDate(t.go_live_at)) : 'Soon' };
+  }
+
+  async function hydrate() {
+    try { var ca = await api('/api/current-affairs'); CA = ca.items.map(function (i) { return [i.category, i.title, i.body, fmtDate(i.published_at)]; }); renderCA(); if (ROLE === 'admin') renderAdmCA(); } catch (e) { console.warn('affairs', e); }
+    if (ROLE === 'admin') {
+      try { var cc = await api('/api/concepts'); CONCEPTS = cc.concepts.map(mapConcept); renderAdmConcepts(); } catch (e) {}
+      try { var bb = await api('/api/banners'); BANNERS = bb.banners.map(mapBanner); renderAdmBanners(); } catch (e) {}
+      return;
+    }
+    try { var b = await api('/api/banners'); BANNERS = b.banners.map(mapBanner); renderBanners(); } catch (e) { console.warn('banners', e); }
+    try { var c = await api('/api/concepts'); CONCEPTS = c.concepts.map(mapConcept); var v = CONCEPTS.find(function (x) { return x.viewable; }); if (v) activeC = v.id; renderConcepts(); } catch (e) { console.warn('concepts', e); }
+    try { var t = await api('/api/tests'); TESTS = []; t.months.forEach(function (m) { m.tests.forEach(function (x) { TESTS.push(mapTest(x)); }); }); renderTests(); } catch (e) { console.warn('tests', e); }
+    try { var q = await api('/api/daily-quiz'); window._serverQuiz = q; } catch (e) {}
+    applyRankVisibility();
+  }
+  async function refreshAffairs() { try { var ca = await api('/api/current-affairs'); CA = ca.items.map(function (i) { return [i.category, i.title, i.body, fmtDate(i.published_at)]; }); renderCA(); renderAdmCA(); } catch (e) {} }
+
+  /* ---------- overrides: visibility-aware rendering ---------- */
+  window.applyRankVisibility = function () {
+    var vis = window.ME ? !!window.ME.rank_visible : (RANK_VISIBILITY[CURRENT_PLAN] !== false);
+    var hero = document.getElementById('rankHero'); if (hero) hero.style.display = vis ? '' : 'none';
+    document.querySelectorAll('#nav button[data-v="leaderboard"],#mnav button[data-v="leaderboard"]').forEach(function (b) { b.style.display = vis ? '' : 'none'; });
+    if (!vis && document.getElementById('leaderboard').classList.contains('on')) go('dashboard');
+    renderBanners();
+  };
+  window.bannerHTML = function (b) {
+    var inner = b.img ? '<img src="' + b.img + '" alt="banner">' :
+      '<div class="banner-ph" style="background:' + (b.bg || 'linear-gradient(120deg,#4F46E5,#7C3AED)') + '"><div><div class="bt">' + (b.title || '') + '</div><div class="bs">' + (b.sub || '') + '</div></div>' + (b.link ? '<span class="bcta">Learn more →</span>' : '') + '<span class="banner-ad">Sponsored</span></div>';
+    var click = '';
+    if (b.link) { click = (b.link.charAt(0) === '#') ? ('onclick="go(\'' + b.link.slice(1) + '\')" style="cursor:pointer"') : ('onclick="window.open(\'' + b.link + '\',\'_blank\')" style="cursor:pointer"'); }
+    return '<div class="banner-slide" ' + click + '>' + inner + '</div>';
+  };
+  window.renderBanners = function () {
+    var slot = document.getElementById('bannerSlot'); if (!slot) return;
+    var vis = window.ME ? !!window.ME.banner_visible : (BANNER_VISIBILITY[CURRENT_PLAN] !== false);
+    if (!vis || !BANNERS.length) { slot.style.display = 'none'; clearInterval(bannerTimer); return; }
+    slot.style.display = 'block';
+    slot.innerHTML = '<div class="banner-wrap"><div class="banner-track" id="bTrack">' + BANNERS.map(window.bannerHTML).join('') + '</div>' +
+      (BANNERS.length > 1 ? '<div class="banner-dots" id="bDots">' + BANNERS.map(function (b, i) { return '<span class="bdot ' + (i === 0 ? 'on' : '') + '" onclick="goBanner(' + i + ')"></span>'; }).join('') + '</div>' : '') + '</div>';
+    bannerIdx = 0; updateBanner(); clearInterval(bannerTimer);
+    if (BANNERS.length > 1) bannerTimer = setInterval(function () { bannerIdx = (bannerIdx + 1) % BANNERS.length; updateBanner(); }, 5000);
+  };
+  window.canViewConcept = function (c) { return ('viewable' in c) ? !!c.viewable : (c.access && (c.access.indexOf('free') > -1 || c.access.indexOf(CURRENT_PLAN) > -1)); };
+
+  /* ---------- overrides: admin lists with quoted UUIDs ---------- */
+  window.renderAdmConcepts = function () {
+    var el = document.getElementById('acAdmList'); if (!el) return;
+    el.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Library · ' + CONCEPTS.length + ' videos</div>' +
+      CONCEPTS.map(function (c) { return '<div class="ml"><span class="mt">' + c.title + '</span><span style="display:flex;gap:4px;flex-wrap:wrap">' + (c.access || []).map(function (a) { return '<span class="accb">' + a + '</span>'; }).join('') + '</span><span class="bx" onclick="delConcept(\'' + c.id + '\')">✕</span></div>'; }).join('');
+  };
+  window.renderAdmBanners = function () {
+    var el = document.getElementById('bAdmList'); if (!el) return;
+    el.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Live banners · ' + BANNERS.length + '</div>' +
+      BANNERS.map(function (b) { var thumb = b.img ? '<img class="bthumb" src="' + b.img + '">' : '<span class="bthumb" style="background:' + (b.bg || '#ccc') + '"></span>'; return '<div class="ml">' + thumb + '<span class="mt">' + (b.title || 'Banner') + '</span><span class="md">' + (b.link ? '🔗 link' : 'no link') + '</span><span class="bx" onclick="delBanner(\'' + b.id + '\')">✕</span></div>'; }).join('');
+  };
+
+  /* ---------- overrides: admin writes -> API ---------- */
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    if (!t || !b) { alert('Add a headline and summary.'); return; }
+    try {
+      var row = await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify({ category: cat, title: t, body: b, published_at: caDate.value }) });
+      CA.unshift([row.category, row.title, row.body, fmtDate(row.published_at)]); renderAdmCA();
+      caTitle.value = caBody.value = ''; flash('caSaved');
+    } catch (e) { alert('Failed to publish: ' + e.message); }
+  };
+  window.addConcept = async function () {
+    var title = acTitle.value.trim(), subj = acSubj.value, url = acUrl.value.trim(), notes = acNotes.value.trim();
+    if (!title || !url) { alert('Add a title and a YouTube link.'); return; }
+    var access = ['free', 'weekly', 'monthly', 'quarterly', 'yearly'].filter(function (k) { return document.getElementById('ac_' + k).checked; });
+    if (!access.length) { alert('Pick at least one plan that can watch it.'); return; }
+    try {
+      var row = await api('/api/admin/concepts', { method: 'POST', body: JSON.stringify({ title: title, subject: subj, video_url: url, notes: notes, access: access }) });
+      CONCEPTS.unshift({ id: row.id, title: row.title, subj: row.subject, vid: row.video_url, notes: row.notes, access: row.access });
+      renderAdmConcepts(); acTitle.value = acUrl.value = acNotes.value = ''; flash('acSaved');
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.delConcept = async function (id) { try { await api('/api/admin/concepts/' + id, { method: 'DELETE' }); CONCEPTS = CONCEPTS.filter(function (c) { return c.id !== id; }); renderAdmConcepts(); } catch (e) { alert(e.message); } };
+
+  window.loadBannerImg = function (file) { if (!file) return; window._bannerFile = file; var rd = new FileReader(); rd.onload = function (e) { document.getElementById('bPrev').src = e.target.result; document.getElementById('bPrevWrap').style.display = 'block'; }; rd.readAsDataURL(file); };
+  window.addBanner = async function () {
+    var file = window._bannerFile;
+    if (!file) { alert('Choose a banner image first.'); return; }
+    if (!SB) { alert('Not connected to Supabase.'); return; }
+    try {
+      var path = 'banner_' + Date.now() + '_' + file.name.replace(/[^\w.]/g, '_');
+      var up = await SB.storage.from('banners').upload(path, file, { upsert: true, cacheControl: '3600' });
+      if (up.error) throw up.error;
+      var pub = SB.storage.from('banners').getPublicUrl(path).data.publicUrl;
+      var link = document.getElementById('bLink').value.trim() || null;
+      var row = await api('/api/admin/banners', { method: 'POST', body: JSON.stringify({ image_url: pub, link_url: link, title: null }) });
+      BANNERS.push({ id: row.id, img: row.image_url, link: row.link_url, title: row.title });
+      renderAdmBanners(); document.getElementById('bLink').value = ''; window._bannerFile = null; document.getElementById('bPrevWrap').style.display = 'none'; flash('bSaved');
+    } catch (e) { alert('Upload failed: ' + (e.message || e)); }
+  };
+  window.delBanner = async function (id) { try { await api('/api/admin/banners/' + id, { method: 'DELETE' }); BANNERS = BANNERS.filter(function (b) { return b.id !== id; }); renderAdmBanners(); } catch (e) { alert(e.message); } };
+
+  window.setRank = function (k, v) { RANK_VISIBILITY[k] = v; api('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ rank_visibility: RANK_VISIBILITY }) }).catch(function (e) { alert(e.message); }); };
+  window.setBannerVis = function (k, v) { BANNER_VISIBILITY[k] = v; api('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ banner_visibility: BANNER_VISIBILITY }) }).catch(function (e) { alert(e.message); }); };
+
+  window.publishTest = async function () {
+    if (!building.length) { alert('Add at least one question.'); return; }
+    var map = { 'Daily Quiz': 'daily', 'Weekly Mega Test': 'weekly', 'Monthly Grand Test': 'monthly', 'Quarterly Test': 'quarterly' };
+    var tt = map[document.getElementById('ctType').value] || 'daily';
+    var qs = building.map(function (x) { return { question: x.q, options: x.o, correct_index: x.a, explanation: x.e, video_url: x.vid || null }; });
+    try {
+      await api('/api/admin/tests', { method: 'POST', body: JSON.stringify({ title: document.getElementById('ctType').value, test_type: tt, duration_minutes: 30, go_live_at: document.getElementById('ctDate').value, questions: qs }) });
+      building = []; renderBuilt(); flash('ctSaved');
+    } catch (e) { alert('Failed to publish: ' + e.message); }
+  };
+
+  /* ---------- safe demo entry (no backend) ---------- */
+  window.login = function (role) {
+    window.DEMO = true; window.ME = null; ROLE = role || 'student';
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    buildShell(); go(role === 'admin' ? 'adm-overview' : 'dashboard');
+    if (ROLE === 'student') { initCharts(); renderConcepts(); renderLB('Daily'); renderBanners(); applyRankVisibility(); }
+    if (ROLE === 'admin') { onCadence(); renderBuilt(); renderAdmConcepts(); renderAdmBanners(); }
+  };
+  window.logout = function () { window.doSignOut(); };
+
+  /* ---------- hash routing (section deep links for banners) ---------- */
+  var VIEW2HASH = { dashboard: 'dashboard', quiz: 'quiz', tests: 'tests', concepts: 'concepts', affairs: 'affairs', leaderboard: 'ranks', plans: 'plans' };
+  var HASH2VIEW = { dashboard: 'dashboard', quiz: 'quiz', tests: 'tests', concepts: 'concepts', affairs: 'affairs', ranks: 'leaderboard', plans: 'plans', home: 'dashboard' };
+  var _go = window.go, _skip = false;
+  window.go = function (v) { _go(v); var h = VIEW2HASH[v]; if (h && location.hash.slice(1) !== h) { _skip = true; location.hash = h; } };
+  function routeFromHash() {
+    if (!document.getElementById('app').classList.contains('show')) return;
+    var h = (location.hash || '').slice(1).toLowerCase(); var v = HASH2VIEW[h]; if (!v) return;
+    if (v === 'leaderboard' && window.ME && !window.ME.rank_visible) v = 'dashboard';
+    _go(v);
+  }
+  window.addEventListener('hashchange', function () { if (_skip) { _skip = false; return; } routeFromHash(); });
+
+  /* ---------- start ---------- */
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+
 </script>
 </body>
 </html>
