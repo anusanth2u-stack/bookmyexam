@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookmyexam.in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#FAFAF9;--card:#FFFFFF;--ink:#18181B;--muted:#71717A;--faint:#A1A1AA;
+    --line:#ECEBE7;--line2:#F4F3F0;
+    --accent:#4F46E5;--accent-soft:#EEF0FE;--accent-deep:#3730A3;
+    --green:#16A34A;--green-soft:#E9F7EE;--red:#DC2626;--red-soft:#FCECEC;
+    --amber:#D97706;--amber-soft:#FEF3E2;
+    --r:14px;--sans:'Inter',system-ui,sans-serif;--display:'Sora',var(--sans);--mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.55}
+  button{font-family:var(--sans)}
+  h1,h2,h3,h4{font-family:var(--display);font-weight:600;letter-spacing:-.3px}
+  .muted{color:var(--muted);font-size:13px}
+
+  .btn{all:unset;cursor:pointer;font-weight:600;font-size:14px;padding:11px 20px;border-radius:10px;text-align:center;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.15s}
+  .btn.pri{background:var(--accent);color:#fff}.btn.pri:hover{background:var(--accent-deep)}
+  .btn.ghost{border:1px solid var(--line);background:var(--card);color:var(--ink)}.btn.ghost:hover{border-color:var(--ink)}
+  .btn.sm{padding:8px 14px;font-size:13px}.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+  /* AUTH */
+  .auth{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(120% 80% at 50% -10%,#fff 0,var(--bg) 60%)}
+  .auth-card{width:100%;max-width:400px;text-align:center}
+  .logo{display:inline-flex;align-items:center;gap:10px;margin-bottom:28px}
+  .logo .m{width:36px;height:36px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:18px}
+  .logo b{font-family:var(--display);font-size:18px}.logo b i{color:var(--accent);font-style:normal}
+  .auth-card h1{font-size:25px;margin-bottom:8px}.auth-card .lead{color:var(--muted);font-size:14px;margin-bottom:26px}
+  .gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:11px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+  .gbtn:hover{border-color:#c9c9c9;box-shadow:0 4px 14px rgba(0,0,0,.05)}.gic{width:19px;height:19px}
+  .auth-or{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:12px;margin:20px 0}.auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
+  .demo{display:flex;gap:10px}.demo button{flex:1;border:1px solid var(--line);background:#fff;border-radius:11px;padding:12px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink);transition:.15s}.demo button:hover{border-color:var(--ink)}.demo button.adm{background:var(--ink);color:#fff;border:none}
+  .gsheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;place-items:center;z-index:100;padding:20px}.gsheet-bg.show{display:grid}
+  .gsheet{background:#fff;border-radius:14px;max-width:360px;width:100%;overflow:hidden;text-align:left;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .gsheet h3{padding:18px 22px 6px;font-weight:500;font-size:18px}.gsheet .gl{padding:14px 22px 0;color:var(--muted);font-size:12.5px;display:flex;align-items:center;gap:7px}
+  .gacct{display:flex;align-items:center;gap:12px;padding:13px 22px;cursor:pointer}.gacct:hover{background:#f6f6f6}.gacct .av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px}.gacct .nm{font-size:14px;font-weight:500}.gacct .em{font-size:12px;color:var(--muted)}
+
+  /* SHELL */
+  .app{display:none;grid-template-columns:236px 1fr;min-height:100vh}.app.show{display:grid}
+  .side{background:var(--card);border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 8px 6px}.brand .m{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:15px}.brand b{font-family:var(--display);font-size:15.5px}.brand b i{color:var(--accent);font-style:normal}
+  .role-pill{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:6px;margin:8px 8px 14px;width:fit-content}.role-pill.stu{background:var(--accent-soft);color:var(--accent-deep)}.role-pill.adm{background:var(--amber-soft);color:var(--amber)}
+  .nav{display:flex;flex-direction:column;gap:2px}.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;font-size:14px;font-weight:500;color:var(--muted);transition:.12s}.nav button .ic{width:18px;text-align:center;font-size:15px}.nav button:hover{background:var(--line2);color:var(--ink)}.nav button.on{background:var(--accent-soft);color:var(--accent-deep);font-weight:600}
+  .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+  .plan-box{padding:12px 13px;background:var(--accent-soft);border-radius:11px}.plan-box .pl{font-size:10px;color:var(--accent-deep);font-weight:700;letter-spacing:.4px;text-transform:uppercase}.plan-box .pt{font-weight:600;font-size:13px;margin:2px 0}.plan-box small{color:var(--muted);font-size:11.5px}
+  .logout{all:unset;cursor:pointer;color:var(--muted);font-size:13px;padding:8px 12px;display:flex;gap:8px}.logout:hover{color:var(--ink)}
+
+  .main{padding:28px 36px 80px;max-width:1080px;width:100%}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+  .hi h1{font-size:21px}.hi p{color:var(--muted);font-size:13.5px;margin-top:2px}
+  .top-right{display:flex;align-items:center;gap:10px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:999px;font-size:13px;font-weight:500}.chip.streak{color:var(--amber);background:var(--amber-soft);border-color:#f6e3c4}.chip b{font-family:var(--mono)}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px}
+
+  .view{display:none;animation:fade .3s ease}.view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+  .grid{display:grid;gap:16px}
+  .sec{display:flex;align-items:center;justify-content:space-between;margin:26px 2px 14px}.sec h2{font-size:16px}.sec a{color:var(--accent);font-size:13px;font-weight:500;cursor:pointer}
+
+  /* ===== MODERN DASHBOARD ===== */
+  .dash-hero{display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;padding:26px 30px;border:none;border-radius:18px;color:#fff;background:linear-gradient(135deg,#201F39 0%,#2C2B4F 100%);position:relative;overflow:hidden}
+  .dash-hero::after{content:"";position:absolute;right:-90px;top:-90px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(99,91,255,.32),transparent 70%)}
+  .dh-lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#9b96e8;font-weight:600}
+  .dh-rank{font-family:var(--mono);font-size:44px;font-weight:600;letter-spacing:-1px;line-height:1;margin:8px 0 6px}.dh-rank small{font-size:18px;color:#8a89b0;font-weight:400}
+  .dh-delta{color:#34D399;font-family:var(--mono);font-size:13px;font-weight:600}
+  .dh-subs{display:flex;gap:26px;margin-top:18px;flex-wrap:wrap}.dh-subs b{font-family:var(--mono);font-size:17px;font-weight:600;display:block}.dh-subs span{font-size:10.5px;color:#9b9ac0}.dh-subs .free b{color:#E0A53A}
+  .dh-foot{margin-top:16px;font-size:12px;color:#8a89b0;border-top:1px solid rgba(255,255,255,.1);padding-top:12px}
+  .ring-lg{width:118px;height:118px;border-radius:50%;background:conic-gradient(#E0A53A calc(var(--p)*1%),rgba(255,255,255,.12) 0);display:grid;place-items:center;position:relative;z-index:1}
+  .ring-lg i{width:94px;height:94px;border-radius:50%;background:#23223F;display:grid;place-items:center;flex-direction:column;font-style:normal}.ring-lg b{font-family:var(--mono);font-size:25px;font-weight:600}.ring-lg span{font-size:8.5px;color:#E0A53A;letter-spacing:1px;text-transform:uppercase}
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .metric{padding:16px 18px;display:flex;align-items:center;gap:13px}.metric .mic{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:17px;flex:none}
+  .metric.a .mic{background:var(--accent-soft);color:var(--accent)}.metric.b .mic{background:var(--green-soft);color:var(--green)}.metric.c .mic{background:var(--amber-soft);color:var(--amber)}
+  .metric .v{font-family:var(--mono);font-size:21px;font-weight:600;line-height:1}.metric .k{color:var(--muted);font-size:12.5px;margin-top:3px}.metric .d{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:600}.metric .d.up{color:var(--green)}.metric .d.dn{color:var(--red)}
+  .chart-card{padding:20px 22px}.chart-card h3{font-size:14px}.chart-card p{color:var(--faint);font-size:12px;margin-bottom:14px}.chart-box{position:relative;height:230px}
+  .cta{padding:22px 26px;display:flex;align-items:center;gap:20px;background:var(--accent-soft);border:none}.cta .big{font-family:var(--display);font-size:17px;font-weight:600}.cta p{color:var(--accent-deep);font-size:13.5px;opacity:.85}.cta .btn{margin-left:auto}
+
+  /* ===== QUIZ ===== */
+  .qwrap{max-width:680px;margin:0 auto}
+  .quiz-start{padding:38px;text-align:center}.badge{display:inline-block;background:var(--accent-soft);color:var(--accent-deep);font-size:12px;font-weight:600;padding:6px 13px;border-radius:999px}
+  .quiz-start h2{font-size:23px;margin:16px 0 8px}.quiz-start>p{color:var(--muted);max-width:430px;margin:0 auto 6px}
+  .qmeta{display:flex;justify-content:center;gap:30px;margin:22px 0 26px}.qmeta .n{font-family:var(--mono);font-size:20px;font-weight:600}.qmeta small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .qhead{display:flex;align-items:center;gap:16px;margin-bottom:16px}.prog{flex:1;height:6px;background:var(--line);border-radius:6px;overflow:hidden}.prog i{display:block;height:100%;background:var(--accent);transition:width .3s}
+  .timer{font-family:var(--mono);font-weight:600;font-size:14px;background:var(--ink);color:#fff;padding:6px 12px;border-radius:8px;min-width:68px;text-align:center}.timer.warn{background:var(--red)}
+  .qcard{padding:26px}.qn{color:var(--accent);font-family:var(--mono);font-weight:600;font-size:12.5px}.qt{font-family:var(--display);font-size:18px;font-weight:600;line-height:1.4;margin:8px 0 20px}
+  .opts{display:flex;flex-direction:column;gap:10px}
+  .opt{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px solid var(--line);border-radius:11px;font-size:14.5px;transition:.12s}.opt:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .opt .key{width:26px;height:26px;border-radius:7px;background:var(--bg);display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:12px;flex:none;border:1px solid var(--line)}
+  .opt.sel{border-color:var(--accent);background:var(--accent-soft)}.opt.sel .key{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .opt.correct{border-color:var(--green);background:var(--green-soft)}.opt.correct .key{background:var(--green);color:#fff;border-color:var(--green)}
+  .opt.wrong{border-color:var(--red);background:var(--red-soft)}.opt.wrong .key{background:var(--red);color:#fff;border-color:var(--red)}
+  .opt[disabled]{cursor:default}
+  .qfoot{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
+  .navhint{font-size:12px;color:var(--faint);text-align:center;margin-top:14px}
+
+  .result{text-align:center;padding:34px}
+  .ring{width:138px;height:138px;border-radius:50%;margin:0 auto 16px;background:conic-gradient(var(--green) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center}.ring i{width:108px;height:108px;border-radius:50%;background:var(--card);display:grid;place-items:center;flex-direction:column;font-style:normal}.ring b{font-family:var(--mono);font-size:34px;font-weight:600;line-height:1}.ring span{font-size:12px;color:var(--muted)}
+  .result h2{font-size:22px}.result .rs{color:var(--muted);margin-bottom:22px}
+  .rstats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}.rstats .s{padding:15px 10px;border-radius:11px;background:var(--bg)}.rstats .s .n{font-family:var(--mono);font-size:21px;font-weight:600}.rstats .s small{color:var(--muted);font-size:11px}.rstats .ok .n{color:var(--green)}.rstats .no .n{color:var(--red)}
+
+  /* solutions (after submit) */
+  .solq{padding:22px 24px;margin-bottom:14px}.solq .sqh{font-family:var(--display);font-size:15px;font-weight:600;margin-bottom:12px}
+  .sopt{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;font-size:14px;margin-bottom:7px;border:1px solid var(--line)}
+  .sopt.c{background:var(--green-soft);border-color:var(--green);color:#0a5e40}.sopt.x{background:var(--red-soft);border-color:var(--red)}
+  .sopt .sk{font-family:var(--mono);font-weight:600;font-size:12px}.sopt .yt{margin-left:auto;font-size:10.5px;font-weight:600;color:var(--muted)}
+  .exp{margin-top:8px;padding:14px 16px;background:var(--bg);border-radius:10px;font-size:13.5px;color:#3f3f46;line-height:1.6}.exp b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:4px}
+  .vsol{margin-top:12px}.vsol .vlbl{font-size:12.5px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:7px}.vsol .vlbl .pin{font-size:10px;color:var(--muted);font-weight:500}
+  .vframe{position:relative;width:100%;aspect-ratio:16/9;border-radius:11px;overflow:hidden;background:#000;border:1px solid var(--line)}.vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+  /* ===== TESTS ===== */
+  .access{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--accent-soft);border-radius:var(--r);margin-bottom:18px;font-size:13.5px;color:var(--accent-deep)}.access b{font-weight:600}
+  .your-band{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
+  .tcard{padding:18px 20px;min-width:248px;flex:none}.tcard .tt{font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--accent)}.tcard h3{font-size:15px;margin:6px 0 2px}.tcard .meta{color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .statline{display:flex;align-items:center;gap:8px;margin:12px 0 14px;font-size:12.5px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%}.dot.live{background:var(--green)}.dot.sched{background:var(--amber)}.dot.done{background:var(--accent)}.dot.lock{background:var(--faint)}
+  .month-acc{margin-bottom:12px;overflow:hidden}
+  .month-head{display:flex;align-items:center;gap:12px;padding:15px 18px;cursor:pointer;user-select:none}.month-head h3{font-size:14.5px}.month-head .cnt{font-size:12px;color:var(--muted);font-family:var(--mono)}.month-head .chev{margin-left:auto;transition:.2s;color:var(--muted);font-size:13px}.month-acc.open .chev{transform:rotate(180deg)}
+  .month-body{display:none;flex-direction:column;gap:10px;padding:0 16px 16px}.month-acc.open .month-body{display:flex}
+  .tmini{display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--line);border-radius:11px}
+  .tmini .ti h4{font-size:14px;font-weight:600}.tmini .ti .m{font-size:12px;color:var(--muted);font-family:var(--mono)}
+  .tmini .badge2{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px}
+  .b-own{background:var(--green-soft);color:var(--green)}.b-live{background:var(--accent-soft);color:var(--accent-deep)}.b-lock{background:var(--line2);color:var(--muted)}.b-sched{background:var(--amber-soft);color:var(--amber)}
+  .tmini .act{margin-left:auto}
+
+  /* ===== CONCEPTS / CA / LB / PLANS (compact reuse) ===== */
+  .cwrap{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start}
+  .vframe2{position:relative;width:100%;aspect-ratio:16/9;border-radius:13px;overflow:hidden;background:#000;border:1px solid var(--line)}.vframe2 iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .ctabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px;width:fit-content;margin:14px 0 12px}.ctabs button{all:unset;cursor:pointer;padding:7px 15px;border-radius:7px;font-size:13px;font-weight:500;color:var(--muted)}.ctabs button.on{background:var(--ink);color:#fff}
+  .notes{padding:20px 22px;font-size:14px;color:#3f3f46;line-height:1.7}.notes h4{font-size:15px;color:var(--ink);margin-bottom:8px}.notes ul{margin:8px 0 8px 18px}.notes li{margin-bottom:6px}.kw{background:var(--accent-soft);padding:1px 6px;border-radius:5px;font-weight:600;color:var(--accent-deep)}
+  .clist{display:flex;flex-direction:column;gap:9px}.citem{padding:13px 15px;cursor:pointer;display:flex;gap:11px;align-items:center}.citem:hover{border-color:var(--accent)}.citem.on{border-color:var(--accent);background:var(--accent-soft)}.citem .th{width:50px;height:34px;border-radius:6px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;flex:none}.citem .ct{font-size:13px;font-weight:500;line-height:1.3}.citem .cs{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .ca-grid{grid-template-columns:repeat(2,1fr)}.ca{padding:18px 20px;display:flex;flex-direction:column;gap:8px}.ca .top{display:flex;justify-content:space-between;align-items:center}.cat{font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:6px;background:var(--accent-soft);color:var(--accent-deep)}.cat.Economy{background:var(--green-soft);color:var(--green)}.cat.International{background:var(--amber-soft);color:var(--amber)}.cat.Environment{background:#E6F4EA;color:#15803d}.ca .bm{cursor:pointer;color:var(--faint);font-size:16px}.ca .bm.on{color:var(--amber)}.ca h3{font-size:15px;line-height:1.35}.ca p{color:var(--muted);font-size:13px;flex:1}.ca .date{color:var(--faint);font-size:11.5px;font-family:var(--mono)}
+  .tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:4px;gap:2px}.tabs button{all:unset;cursor:pointer;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted)}.tabs button.on{background:var(--ink);color:#fff}
+  .lb{margin-top:16px;overflow:hidden}.lb-row{display:grid;grid-template-columns:60px 1fr 120px 80px;align-items:center;padding:13px 20px;border-bottom:1px solid var(--line2);font-size:14px}.lb-row.head{background:var(--bg);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}.lb-row:last-child{border-bottom:none}.lb-row.me{background:var(--accent-soft)}.lb-rank{font-family:var(--mono);font-weight:600}.medal{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;font-size:12px;color:#fff}.m1{background:#E0A53A}.m2{background:#9CA3AF}.m3{background:#B07A4F}.lb-name{display:flex;align-items:center;gap:10px;font-weight:500}.lb-name .av{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:11px;font-weight:600}.me-tag{font-size:9.5px;background:var(--accent);color:#fff;padding:2px 6px;border-radius:5px;font-weight:600}.lb-state{color:var(--muted);font-size:13px}.lb-score{font-family:var(--mono);font-weight:600;text-align:right}
+  .rankinfo{padding:18px 22px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-start}.rankinfo .ri{font-size:20px}.rankinfo h4{font-size:14px;margin-bottom:4px}.rankinfo p{font-size:13px;color:var(--muted);line-height:1.6}
+  .plans{grid-template-columns:repeat(4,1fr);margin-top:6px}.plan{padding:22px 20px;text-align:center;position:relative}.plan.pop{border:1.5px solid var(--accent)}.pop-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:3px 11px;border-radius:999px;letter-spacing:.4px;text-transform:uppercase}.plan .pn{font-family:var(--display);font-weight:600;font-size:14px;color:var(--muted)}.plan .pp{font-family:var(--mono);font-size:30px;font-weight:600;margin:8px 0 2px}.plan .pd{color:var(--faint);font-size:11.5px;margin-bottom:16px}.plan ul{list-style:none;text-align:left;margin-bottom:16px;display:flex;flex-direction:column;gap:7px}.plan li{font-size:12.5px;color:#444;display:flex;gap:8px}.plan li::before{content:"✓";color:var(--green);font-weight:700}.plan .btn{width:100%;box-sizing:border-box;padding:10px}
+
+  /* ===== ADMIN ===== */
+  .form-card{padding:24px 26px}.form-card h3{font-size:16px}.form-card .fh{color:var(--muted);font-size:13px;margin:3px 0 18px}
+  .field{margin-bottom:14px}.field label{display:block;font-size:12.5px;font-weight:600;color:#3f3f46;margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:14px;font-family:var(--sans);background:#fff;color:var(--ink)}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}.field textarea{resize:vertical;min-height:70px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .sched-hint{background:var(--accent-soft);color:var(--accent-deep);font-size:12.5px;padding:10px 14px;border-radius:9px;margin-bottom:18px;display:flex;gap:8px;align-items:center}
+  .opt-in{display:flex;align-items:center;gap:10px;margin-bottom:8px}.opt-in .rk{font-family:var(--mono);font-weight:600;width:26px;height:26px;border-radius:7px;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;font-size:12px;flex:none}.opt-in input[type=text]{flex:1}.opt-in label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);margin:0;white-space:nowrap;cursor:pointer}
+  .fa{display:flex;gap:10px;align-items:center;margin-top:6px}.saved{color:var(--green);font-size:13px;font-weight:600;opacity:0;transition:.3s}.saved.show{opacity:1}
+  .add-tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:4px;width:fit-content;margin-bottom:18px}.add-tabs button{all:unset;cursor:pointer;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted)}.add-tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .drop{border:2px dashed var(--line);border-radius:13px;padding:30px 20px;text-align:center;cursor:pointer;transition:.15s;background:var(--bg)}.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}.drop .di{font-size:28px;margin-bottom:6px}.drop .dt{font-weight:600;font-size:14px}.drop .ds{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .built{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}.built-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.built-head h4{font-size:14px}
+  .bq{display:flex;align-items:center;gap:11px;padding:11px 14px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;font-size:13px}.bq .bn{font-family:var(--mono);font-weight:600;color:var(--faint)}.bq .bt{font-weight:500;flex:1}.bq .ba{font-family:var(--mono);font-weight:600;color:var(--green);font-size:12px}.bq .bv{font-size:10.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:5px}.bq .bx{cursor:pointer;color:var(--faint);font-size:15px}
+  .adm-stats{grid-template-columns:repeat(4,1fr)}.stat{padding:18px 20px}.stat .k{color:var(--muted);font-size:12.5px;font-weight:500}.stat .v{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:8px;line-height:1}.stat .delta{font-family:var(--mono);font-size:12px;font-weight:600;margin-top:6px;display:inline-block;color:var(--green)}
+  .cal{padding:18px 22px}.cal-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line2);font-size:13.5px}.cal-row:last-child{border-bottom:none}.cal-row .when{font-family:var(--mono);font-weight:600;width:96px;color:var(--accent)}.cal-row .what b{font-weight:600}.cal-row .what span{color:var(--muted);display:block;font-size:12.5px}.cal-row .st{margin-left:auto;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px}.st.live{background:var(--green-soft);color:var(--green)}.st.sched{background:var(--amber-soft);color:var(--amber)}
+  .mlist .ml{display:flex;align-items:center;gap:11px;padding:11px 14px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;font-size:13px}.ml .mt{font-weight:500}.ml .md{color:var(--faint);font-size:12px;font-family:var(--mono);margin-left:auto}
+
+  .rank-hidden{padding:22px 26px;display:flex;gap:14px;align-items:flex-start;background:var(--amber-soft);border:none}.rank-hidden .ri{font-size:22px}.rank-hidden h4{font-size:15px;margin-bottom:4px}.rank-hidden p{font-size:13px;color:#7c5e1f;line-height:1.6;max-width:580px}
+  .citem.lock{opacity:.9}.citem.lock .th{background:#E5E4E0;color:#9C9BA0}.citem .acc{margin-left:auto;font-size:9px;font-weight:600;color:var(--muted);background:var(--bg);padding:2px 7px;border-radius:5px;text-transform:uppercase;border:1px solid var(--line)}
+  .acprev{aspect-ratio:16/9;border-radius:11px;overflow:hidden;border:1px solid var(--line);background:#000;position:relative;margin-top:4px}.acprev iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .acc-checks{display:flex;gap:10px;flex-wrap:wrap}.acc-checks label{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500;border:1px solid var(--line);padding:9px 14px;border-radius:9px;cursor:pointer;transition:.12s}.acc-checks label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent-deep)}.acc-checks input{accent-color:var(--accent);width:15px;height:15px}
+  .ml .accb{font-size:9px;font-weight:600;color:var(--accent-deep);background:var(--accent-soft);padding:2px 7px;border-radius:5px;text-transform:uppercase}.ml .bx{cursor:pointer;color:var(--faint);font-size:14px;margin-left:8px}
+  .switch{position:relative;display:inline-block;width:44px;height:25px;flex:none}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;background:var(--line);border-radius:25px;cursor:pointer;transition:.2s}.slider::before{content:"";position:absolute;height:19px;width:19px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}.switch input:checked+.slider{background:var(--green)}.switch input:checked+.slider::before{transform:translateX(19px)}
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 0;border-bottom:1px solid var(--line2)}.set-row:last-child{border-bottom:none}.set-row .sl b{font-size:14px;font-weight:600}.set-row .sl span{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+  .banner-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);max-height:240px}
+  .banner-track{display:flex;transition:transform .5s ease}
+  .banner-slide{min-width:100%;flex:none;position:relative}
+  .banner-slide img{width:100%;height:240px;display:block;object-fit:cover;object-position:center}
+  .banner-ph{height:240px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 34px;color:#fff;position:relative}
+  .banner-ph .bt{font-family:var(--display);font-size:21px;font-weight:700;letter-spacing:-.3px}
+  .banner-ph .bs{font-size:13px;opacity:.92;margin-top:4px}
+  .banner-ph .bcta{flex:none;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;white-space:nowrap}
+  .banner-ad{font-size:9px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:rgba(255,255,255,.6);position:absolute;top:9px;right:14px}
+  .banner-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2}
+  .bdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55);cursor:pointer;transition:.2s}.bdot.on{background:#fff;width:18px;border-radius:4px}
+  .bthumb{width:64px;height:30px;border-radius:6px;object-fit:cover;flex:none}
+  @media(max-width:920px){.banner-ph{aspect-ratio:3/1;padding:0 20px}.banner-ph .bt{font-size:16px}.banner-ph .bs{display:none}}
+  .mnav{display:none}
+  @media(max-width:920px){
+    .app.show{grid-template-columns:1fr}.side{display:none}.main{padding:18px 16px 90px}
+    .dash-hero{grid-template-columns:1fr}.metrics,.adm-stats{grid-template-columns:1fr}.charts-2{grid-template-columns:1fr!important}
+    .ca-grid,.cwrap,.frow{grid-template-columns:1fr}.plans{grid-template-columns:1fr 1fr}.rstats{grid-template-columns:1fr 1fr}
+    .auth{grid-template-columns:1fr}.lb-row{grid-template-columns:46px 1fr 70px}.lb-state{display:none}.cta{flex-direction:column;align-items:flex-start}.cta .btn{margin-left:0}
+    .mnav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);padding:7px 4px;justify-content:space-around;z-index:50}.mnav button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:9.5px;font-weight:500;padding:5px 8px;flex:1;text-align:center}.mnav button .ic{font-size:16px}.mnav button.on{color:var(--accent)}
+  }
+  @media(max-width:480px){.plans{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth" id="auth"><div class="auth-card">
+  <div class="logo"><div class="m">B</div><b>Bookmyexam<i>.in</i></b></div>
+  <h1>Sign in to continue</h1><p class="lead">Daily quizzes, weekly mega tests and rank analytics for government-exam aspirants.</p>
+  <button class="gbtn" onclick="openG()"><svg class="gic" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continue with Google</button>
+  <div class="auth-or">demo shortcuts</div>
+  <div class="demo"><button onclick="login('student')">Enter as Student</button><button class="adm" onclick="login('admin')">Enter as Admin</button></div>
+</div></div>
+<div class="gsheet-bg" id="gsheet"><div class="gsheet">
+  <div class="gl"><svg width="15" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Sign in with Google</div>
+  <h3>Choose an account</h3>
+  <div class="gacct" onclick="login('student')"><div class="av">AK</div><div><div class="nm">Arjun Kumar</div><div class="em">arjun.kumar@gmail.com</div></div></div>
+  <div class="gacct" onclick="login('student')"><div class="av" style="background:var(--green)">+</div><div><div class="nm">Use another account</div><div class="em">Sign up with a new Gmail</div></div></div>
+</div></div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand"><div class="m">B</div><b>Bookmyexam<i>.in</i></b></div>
+    <span class="role-pill" id="rolePill"></span><nav class="nav" id="nav"></nav><div class="side-foot" id="sideFoot"></div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><div class="hi"><h1 id="greeting"></h1><p id="subtitle"></p></div><div class="top-right" id="topRight"></div></div>
+
+    <!-- DASHBOARD -->
+    <section class="view on" id="dashboard">
+      <div class="card dash-hero" id="rankHero">
+        <div>
+          <div class="dh-lbl">All India Rank · premium</div>
+          <div class="dh-rank">#1,247 <small>/ 84,302</small></div>
+          <div class="dh-delta">▲ 138 this week</div>
+          <div class="dh-subs">
+            <div><b>#42</b><span>Karnataka</span></div>
+            <div><b>#6</b><span>Bengaluru</span></div>
+            <div class="free"><b>#318</b><span>Daily quiz · free</span></div>
+          </div>
+          <div class="dh-foot">From Weekly Mega Test · Week 26 — ranked against 84,302 aspirants who sat it</div>
+        </div>
+        <div class="ring-lg" style="--p:98"><i><b>98.4</b><span>percentile</span></i></div>
+      </div>
+      <div class="card rank-hidden" id="rankHidden" style="display:none"></div>
+      <div id="bannerSlot" style="margin-top:16px;display:none"></div>
+      <div class="grid metrics" style="margin-top:16px">
+        <div class="card metric a"><div class="mic">◷</div><div><div class="v">64</div><div class="k">Tests attempted</div></div><div class="d up">+8</div></div>
+        <div class="card metric b"><div class="mic">✓</div><div><div class="v">81%</div><div class="k">Accuracy</div></div><div class="d dn">-2%</div></div>
+        <div class="card metric c"><div class="mic">🔥</div><div><div class="v">12</div><div class="k">Day streak</div></div><div class="d up">+1</div></div>
+      </div>
+      <div class="grid charts-2" style="grid-template-columns:1.5fr 1fr;margin-top:16px">
+        <div class="card chart-card"><h3>Score progress</h3><p>Last 8 weekly tests · out of 200</p><div class="chart-box"><canvas id="cProg"></canvas></div></div>
+        <div class="card chart-card"><h3>Subject accuracy</h3><p>Where to focus</p><div class="chart-box"><canvas id="cSubj"></canvas></div></div>
+      </div>
+      <div class="card cta" style="margin-top:16px"><div><div class="big">Today's quiz is ready</div><p>5 questions · 3 minutes · keep your 12-day streak alive</p></div><button class="btn pri" onclick="go('quiz')">Start quiz →</button></div>
+    </section>
+
+    <!-- QUIZ -->
+    <section class="view" id="quiz"><div class="qwrap" id="quizMount"></div></section>
+
+    <!-- TESTS -->
+    <section class="view" id="tests">
+      <div class="access">🔓 <span><b>Weekly plan</b> · joined 28 Jun — current week unlocked until 05 Jul. Past weeks are visible but locked until you unlock them.</span></div>
+      <div class="sec" style="margin-top:8px"><h2>Your tests</h2><span class="muted">purchased & active</span></div>
+      <div class="your-band" id="yourTests"></div>
+      <div class="sec"><h2>Browse all tests</h2><span class="muted">sorted by month</span></div>
+      <div id="monthList"></div>
+    </section>
+
+    <!-- CONCEPTS -->
+    <section class="view" id="concepts">
+      <div class="cwrap">
+        <div><div class="vframe2"><iframe id="player" src="https://www.youtube.com/embed/M7lc1UVf-VE?rel=0" allowfullscreen></iframe></div>
+          <div class="ctabs"><button class="on" data-t="notes" onclick="cTab('notes')">Concept notes</button><button data-t="about" onclick="cTab('about')">About</button></div>
+          <div class="card notes" id="cNotes"></div></div>
+        <div><div class="sec" style="margin:0 2px 12px"><h2>Concept library</h2></div><div class="clist" id="clist"></div></div>
+      </div>
+    </section>
+
+    <!-- AFFAIRS -->
+    <section class="view" id="affairs"><div class="grid ca-grid" id="caGrid"></div></section>
+
+    <!-- LEADERBOARD -->
+    <section class="view" id="leaderboard">
+      <div class="card rankinfo"><span class="ri">🏅</span><div><h4>How ranking works</h4><p>You're ranked against everyone who sat the <b>same test</b>, by percentile. The Daily Quiz is free, so everyone gets a daily rank. All-India Rank comes from the paid Weekly & Monthly Mega Tests — you're ranked only on tests you actually attempt.</p></div></div>
+      <div class="card rank-hidden" id="lbHidden" style="display:none"><span class="ri">🏗️</span><div><h4>Leaderboard coming soon</h4><p>Rankings open up once enough aspirants are competing. Your daily-quiz streak still counts in the meantime.</p></div></div>
+      <div id="lbBody">
+      <div class="tabs" id="lbTabs"><button class="on" data-t="Daily">Daily</button><button data-t="Weekly">Weekly</button><button data-t="Monthly">Monthly</button><button data-t="All-time">All-time</button></div>
+      <div class="card lb" id="lbList"></div>
+      </div>
+    </section>
+
+    <!-- PLANS -->
+    <section class="view" id="plans">
+      <div class="grid plans">
+        <div class="card plan"><div class="pn">Weekly</div><div class="pp">₹49</div><div class="pd">Try it out</div><ul><li>Current week tests</li><li>Daily quiz + streaks</li></ul><button class="btn ghost">Current plan</button></div>
+        <div class="card plan"><div class="pn">Monthly</div><div class="pp">₹149</div><div class="pd">₹37 / week</div><ul><li>Whole month unlocked</li><li>PDF rank reports</li></ul><button class="btn ghost">Upgrade</button></div>
+        <div class="card plan pop"><div class="pop-tag">Popular</div><div class="pn">Quarterly</div><div class="pp">₹399</div><div class="pd">₹33 / week</div><ul><li>3 months unlocked</li><li>Concept videos + notes</li><li>AI study coach</li></ul><button class="btn pri">Upgrade</button></div>
+        <div class="card plan"><div class="pn">Annual</div><div class="pp">₹999</div><div class="pd">₹19 / week</div><ul><li>Full year unlocked</li><li>Annual mega test</li></ul><button class="btn ghost">Upgrade</button></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: OVERVIEW -->
+    <section class="view" id="adm-overview">
+      <div class="grid adm-stats">
+        <div class="card stat"><div class="k">Total users</div><div class="v">84,302</div><div class="delta">+1,204</div></div>
+        <div class="card stat"><div class="k">Revenue (Jun)</div><div class="v">₹6.4L</div><div class="delta">+18%</div></div>
+        <div class="card stat"><div class="k">Daily quiz Qs</div><div class="v" id="statQ">5</div><div class="delta">today</div></div>
+        <div class="card stat"><div class="k">Tests scheduled</div><div class="v" id="statT">2</div><div class="delta">this month</div></div>
+      </div>
+      <div class="sec"><h2>Content calendar</h2><a onclick="go('adm-create')">Create test →</a></div>
+      <div class="card cal">
+        <div class="cal-row"><div class="when">Daily</div><div class="what"><b>Quiz + current affairs</b><span>Auto-published 06:00 IST</span></div><span class="st live">Live</span></div>
+        <div class="cal-row"><div class="when">Sun 28 Jun</div><div class="what"><b>Weekly Mega Test · Week 26</b><span>Every Sunday</span></div><span class="st live">Live now</span></div>
+        <div class="cal-row"><div class="when">Mon 30 Jun</div><div class="what"><b>Monthly Grand Test</b><span>Last day of the month</span></div><span class="st sched">Scheduled</span></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: CREATE TEST (scheduler + question upload combined) -->
+    <section class="view" id="adm-create">
+      <div class="card form-card">
+        <h3>Create a test</h3>
+        <div class="fh">Set the cadence and schedule, then add questions manually or from an Excel file — all in one place.</div>
+        <div class="frow">
+          <div class="field"><label>Cadence</label><select id="ctType" onchange="onCadence()"><option>Daily Quiz</option><option>Weekly Mega Test</option><option>Monthly Grand Test</option><option>Quarterly Test</option></select></div>
+          <div class="field"><label>Go-live date</label><input type="date" id="ctDate" value="2026-06-28"></div>
+        </div>
+        <div class="sched-hint" id="schedHint">⏱ Daily quizzes publish immediately at 06:00 IST. No explanation videos needed.</div>
+
+        <div class="add-tabs"><button class="on" data-m="manual" onclick="addMode('manual')">Add manually</button><button data-m="excel" onclick="addMode('excel')">Upload Excel</button></div>
+
+        <div id="manualPane">
+          <div class="field"><label>Question</label><textarea id="mQ" placeholder="Type the question…"></textarea></div>
+          <div class="field"><label>Options · tick the correct answer</label>
+            <div class="opt-in"><span class="rk">A</span><input type="text" id="mA" placeholder="Option A"><label><input type="radio" name="mc" value="0" checked> correct</label></div>
+            <div class="opt-in"><span class="rk">B</span><input type="text" id="mB" placeholder="Option B"><label><input type="radio" name="mc" value="1"> correct</label></div>
+            <div class="opt-in"><span class="rk">C</span><input type="text" id="mC" placeholder="Option C"><label><input type="radio" name="mc" value="2"> correct</label></div>
+            <div class="opt-in"><span class="rk">D</span><input type="text" id="mD" placeholder="Option D"><label><input type="radio" name="mc" value="3"> correct</label></div>
+          </div>
+          <div class="field"><label>Explanation</label><textarea id="mE" placeholder="Shown after the student submits the whole test."></textarea></div>
+          <div class="field" id="vidWrap"><label>Concept video URL <span style="color:var(--faint);font-weight:400">· optional, shown in solutions</span></label><input type="text" id="mV" placeholder="https://www.youtube.com/watch?v=…"></div>
+          <button class="btn ghost sm" onclick="addManual()">+ Add question</button>
+        </div>
+
+        <div id="excelPane" style="display:none">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px"><button class="btn ghost sm" onclick="downloadTemplate()">⬇ Download Excel template</button><span style="color:var(--faint);font-size:12px">Question · Option A–D · Correct (A/B/C/D) · Explanation · Concept video URL</span></div>
+          <div class="drop" id="drop" onclick="document.getElementById('xlfile').click()"><div class="di">⬆</div><div class="dt">Drop .xlsx / .csv or click to browse</div><div class="ds">Rows are added to the question list below</div><input type="file" id="xlfile" accept=".xlsx,.xls,.csv" hidden onchange="readFile(this.files[0])"></div>
+        </div>
+
+        <div class="built">
+          <div class="built-head"><h4>Questions in this test · <span id="bCount">0</span></h4><button class="btn pri sm" onclick="publishTest()">Publish / schedule test</button></div>
+          <div id="bList"><p class="muted">No questions yet. Add them manually or upload an Excel file.</p></div>
+          <span class="saved" id="ctSaved" style="margin-top:10px;display:inline-block">✓ Published</span>
+        </div>
+      </div>
+      <div class="card form-card" style="margin-top:16px"><h3>Scheduled tests</h3><div class="fh">Upcoming and live tests.</div>
+        <div class="mlist" id="schedList">
+          <div class="ml"><span class="cat">Weekly</span><span class="mt">Week 26 Mega Test · 100 Q</span><span class="md">Live · 28 Jun</span></div>
+          <div class="ml"><span class="cat International">Monthly</span><span class="mt">June Grand Test · 150 Q</span><span class="md">Sched · 30 Jun</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN: CONCEPT LIBRARY -->
+    <section class="view" id="adm-concepts">
+      <div class="card form-card">
+        <h3>Upload to concept library</h3>
+        <div class="fh">Paste a YouTube link, add notes, and choose which plans can watch it. Plays inside Bookmyexam — no redirect.</div>
+        <div class="frow"><div class="field"><label>Title</label><input type="text" id="acTitle" placeholder="e.g. Fundamental Rights — explained"></div><div class="field"><label>Subject</label><select id="acSubj"><option>Polity</option><option>Economy</option><option>Geography</option><option>History</option><option>Environment</option><option>Science & Tech</option></select></div></div>
+        <div class="field"><label>YouTube link or video ID</label><input type="text" id="acUrl" placeholder="https://www.youtube.com/watch?v=…" oninput="previewAC(this.value)"></div>
+        <div class="acprev" id="acPrev"><iframe src="https://www.youtube.com/embed/M7lc1UVf-VE?rel=0" allowfullscreen></iframe></div>
+        <div class="field" style="margin-top:15px"><label>Concept notes (viewer)</label><textarea id="acNotes" placeholder="Key points, definitions, must-remember facts…" style="min-height:90px"></textarea></div>
+        <div class="field"><label>Who can watch this video?</label>
+          <div class="acc-checks">
+            <label><input type="checkbox" id="ac_free" checked> Free</label>
+            <label><input type="checkbox" id="ac_weekly"> Weekly</label>
+            <label><input type="checkbox" id="ac_monthly"> Monthly</label>
+            <label><input type="checkbox" id="ac_quarterly"> Quarterly</label>
+            <label><input type="checkbox" id="ac_yearly"> Yearly</label>
+          </div>
+        </div>
+        <div class="fa"><button class="btn pri" onclick="addConcept()">Publish to library</button><span class="saved" id="acSaved">✓ Published</span></div>
+        <div class="mlist" id="acAdmList" style="margin-top:20px"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: BANNERS -->
+    <section class="view" id="adm-banners">
+      <div class="card form-card">
+        <h3>Promotional banners</h3>
+        <div class="fh">Upload banner images shown on student dashboards. Add an optional link so a tap opens your offer. Add as many as you like — they rotate automatically, and they fill the rank slot for users who have ranks turned off.</div>
+        <div style="border-top:1px solid var(--line2);padding-top:14px;margin-bottom:18px">
+          <div style="font-size:12.5px;font-weight:600;color:#3f3f46;margin-bottom:2px">Show banners to</div>
+          <div class="set-row"><div class="sl"><b>Non-registered visitors</b><span>Public / not signed in</span></div><label class="switch"><input type="checkbox" id="bv_guest" checked onchange="setBannerVis('guest',this.checked)"><span class="slider"></span></label></div>
+          <div class="set-row"><div class="sl"><b>Weekly subscribers</b></div><label class="switch"><input type="checkbox" id="bv_weekly" checked onchange="setBannerVis('weekly',this.checked)"><span class="slider"></span></label></div>
+          <div class="set-row"><div class="sl"><b>Monthly subscribers</b></div><label class="switch"><input type="checkbox" id="bv_monthly" checked onchange="setBannerVis('monthly',this.checked)"><span class="slider"></span></label></div>
+          <div class="set-row"><div class="sl"><b>Quarterly subscribers</b></div><label class="switch"><input type="checkbox" id="bv_quarterly" checked onchange="setBannerVis('quarterly',this.checked)"><span class="slider"></span></label></div>
+          <div class="set-row"><div class="sl"><b>Yearly subscribers</b></div><label class="switch"><input type="checkbox" id="bv_yearly" checked onchange="setBannerVis('yearly',this.checked)"><span class="slider"></span></label></div>
+          <p class="muted" style="margin-top:10px">Tip: switch banners off for premium tiers to give paying users an ad-free experience.</p>
+        </div>
+        <div class="field"><label>Banner image <span style="color:var(--faint);font-weight:400">· 2:1 · e.g. 2000×1000</span></label>
+          <div class="drop" id="bdrop" onclick="document.getElementById('bfile').click()"><div class="di">🖼</div><div class="dt">Upload banner image</div><div class="ds">PNG / JPG · click to browse</div><input type="file" id="bfile" accept="image/*" hidden onchange="loadBannerImg(this.files[0])"></div>
+          <div id="bPrevWrap" style="display:none;margin-top:12px"><div class="banner-wrap"><div class="banner-slide"><img id="bPrev"></div></div></div>
+        </div>
+        <div class="field"><label>CTA link <span style="color:var(--faint);font-weight:400">· optional</span></label><input type="text" id="bLink" placeholder="https://bookmyexam.in/offers/quarterly"></div>
+        <div class="fa"><button class="btn pri" onclick="addBanner()">+ Add banner</button><span class="saved" id="bSaved">✓ Added</span></div>
+        <div id="bAdmList" class="mlist" style="margin-top:20px"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: CURRENT AFFAIRS -->
+    <section class="view" id="adm-affairs">
+      <div class="card form-card">
+        <h3>Publish current affairs</h3><div class="fh">Appears instantly in the student feed.</div>
+        <div class="frow"><div class="field"><label>Category</label><select id="caCat"><option>National</option><option>International</option><option>Economy</option><option>Environment</option><option>Science</option><option>Government</option></select></div><div class="field"><label>Date</label><input type="date" id="caDate" value="2026-06-28"></div></div>
+        <div class="field"><label>Headline</label><input type="text" id="caTitle" placeholder="e.g. RBI keeps repo rate unchanged at 6.25%"></div>
+        <div class="field"><label>Summary</label><textarea id="caBody" placeholder="2–3 sentence summary for quick revision…"></textarea></div>
+        <div class="fa"><button class="btn pri" onclick="addAffair()">Publish</button><span class="saved" id="caSaved">✓ Published</span></div>
+        <div class="mlist" id="caAdmList" style="margin-top:18px"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN: SETTINGS (rank visibility) -->
+    <section class="view" id="adm-settings">
+      <div class="card form-card">
+        <h3>Rank module visibility</h3>
+        <div class="fh">Turn ranks off for any audience. Early on, few users means inflated ranks that quietly reveal low subscriber numbers — hide them until you have volume, then switch on.</div>
+        <div class="set-row"><div class="sl"><b>Non-registered visitors</b><span>Public/landing rank previews</span></div><label class="switch"><input type="checkbox" id="rk_guest" checked onchange="setRank('guest',this.checked)"><span class="slider"></span></label></div>
+        <div class="set-row"><div class="sl"><b>Weekly subscribers</b><span>Show All-India rank + leaderboard</span></div><label class="switch"><input type="checkbox" id="rk_weekly" checked onchange="setRank('weekly',this.checked)"><span class="slider"></span></label></div>
+        <div class="set-row"><div class="sl"><b>Monthly subscribers</b><span>Show All-India rank + leaderboard</span></div><label class="switch"><input type="checkbox" id="rk_monthly" checked onchange="setRank('monthly',this.checked)"><span class="slider"></span></label></div>
+        <div class="set-row"><div class="sl"><b>Quarterly subscribers</b><span>Show All-India rank + leaderboard</span></div><label class="switch"><input type="checkbox" id="rk_quarterly" checked onchange="setRank('quarterly',this.checked)"><span class="slider"></span></label></div>
+        <div class="set-row"><div class="sl"><b>Yearly subscribers</b><span>Show All-India rank + leaderboard</span></div><label class="switch"><input type="checkbox" id="rk_yearly" checked onchange="setRank('yearly',this.checked)"><span class="slider"></span></label></div>
+        <p class="muted" style="margin-top:14px">Tip: sign out and enter as Student to see the effect — the demo student is on the <b>Weekly</b> plan.</p>
+      </div>
+    </section>
+  </main>
+</div>
+<nav class="mnav" id="mnav"></nav>
+
+<script>
+/* ===== NAV ===== */
+const NAVS={
+  student:[['dashboard','◈','Dashboard'],['quiz','◎','Quiz'],['tests','▦','Tests'],['concepts','▷','Concepts'],['affairs','▤','Affairs'],['leaderboard','▲','Ranks'],['plans','◆','Plans']],
+  admin:[['adm-overview','◈','Overview'],['adm-create','✚','Create test'],['adm-concepts','▷','Concepts'],['adm-banners','▭','Banners'],['adm-affairs','▤','Affairs'],['adm-settings','⚙','Settings']]
+};
+let ROLE='student';
+function openG(){document.getElementById('gsheet').classList.add('show');}
+document.getElementById('gsheet').onclick=e=>{if(e.target.id==='gsheet')e.target.classList.remove('show');};
+function login(role){ROLE=role;document.getElementById('gsheet').classList.remove('show');document.getElementById('auth').style.display='none';document.getElementById('app').classList.add('show');buildShell();go(role==='admin'?'adm-overview':'dashboard');if(role==='student'){initCharts();renderConcepts();renderLB('Daily');renderBanners();applyRankVisibility();}if(role==='admin'){onCadence();renderBuilt();renderAdmConcepts();renderAdmBanners();}}
+function logout(){document.getElementById('app').classList.remove('show');document.getElementById('auth').style.display='';window.scrollTo(0,0);}
+function buildShell(){
+  const pill=document.getElementById('rolePill');pill.className='role-pill '+(ROLE==='admin'?'adm':'stu');pill.textContent=ROLE==='admin'?'Admin':'Student';
+  const items=NAVS[ROLE];
+  document.getElementById('nav').innerHTML=items.map((n,i)=>`<button data-v="${n[0]}" class="${i===0?'on':''}"><span class="ic">${n[1]}</span> ${n[2]}</button>`).join('');
+  document.getElementById('mnav').innerHTML=items.slice(0,5).map((n,i)=>`<button data-v="${n[0]}" class="${i===0?'on':''}"><span class="ic">${n[1]}</span>${n[2]}</button>`).join('');
+  document.querySelectorAll('#nav button,#mnav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+  if(ROLE==='student'){greeting.textContent='Good evening, Arjun';subtitle.textContent='UPSC Civil Services 2026 · Karnataka';topRight.innerHTML=`<span class="chip streak">🔥 <b>12</b></span><div class="avatar">AK</div>`;sideFoot.innerHTML=`<div class="plan-box"><div class="pl">Weekly plan</div><div class="pt">Current week unlocked</div><small>Expires 05 Jul</small></div><button class="logout" onclick="logout()">↩ Sign out</button>`;}
+  else{greeting.textContent='Admin console';subtitle.textContent='Publish content · create & schedule tests';topRight.innerHTML=`<span class="chip" style="background:var(--amber-soft);color:var(--amber);border-color:#f6e3c4">Content editor</span><div class="avatar" style="background:var(--amber)">AD</div>`;sideFoot.innerHTML=`<button class="logout" onclick="logout()">↩ Sign out</button>`;}
+}
+function go(v){document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id===v));document.querySelectorAll('#nav button,#mnav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(ROLE==='student'&&(v==='dashboard'||v==='leaderboard'))applyRankVisibility();window.scrollTo({top:0,behavior:'smooth'});}
+
+/* ===== CHARTS ===== */
+let charted=false;
+function initCharts(){if(charted)return;charted=true;const A='#4F46E5',grid='#F0EFEC',muted='#A1A1AA';Chart.defaults.font.family="'IBM Plex Mono','Inter',sans-serif";Chart.defaults.font.size=11;Chart.defaults.color=muted;
+  new Chart(cProg,{type:'line',data:{labels:['W19','W20','W21','W22','W23','W24','W25','W26'],datasets:[{data:[127,141,138,151,148,158,160,164],borderColor:A,backgroundColor:'rgba(79,70,229,.08)',fill:true,tension:.4,borderWidth:2.5,pointRadius:3,pointBackgroundColor:A,pointBorderColor:'#fff',pointBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:100,max:200,grid:{color:grid},border:{display:false}},x:{grid:{display:false},border:{display:false}}}}});
+  new Chart(cSubj,{type:'bar',data:{labels:['Polity','Hist','Geo','Eco','Env','S&T'],datasets:[{data:[92,78,71,54,63,69],backgroundColor:['#16A34A','#4F46E5','#4F46E5','#DC2626','#D97706','#4F46E5'],borderRadius:5,barThickness:20}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,grid:{color:grid},border:{display:false},ticks:{callback:v=>v+'%'}},x:{grid:{display:false},border:{display:false}}}}});}
+
+/* ===== QUESTION BANKS ===== */
+let DAILY_Q=[
+  {q:"The 2026 G20 Summit, where India played a key sherpa role, was hosted by which country?",o:["Brazil","South Africa","United States","Indonesia"],a:1,e:"South Africa hosted the G20 Summit, continuing the troika that included India's earlier presidency."},
+  {q:"India's flagship scheme 'PM Vishwakarma' primarily supports which group?",o:["Traditional artisans & craftspeople","Startup founders","Smallholder farmers","Urban gig workers"],a:0,e:"PM Vishwakarma gives credit, tools and skill support to traditional artisans such as weavers and potters."},
+  {q:"Which body releases the 'Financial Stability Report' in India?",o:["SEBI","Ministry of Finance","Reserve Bank of India","NITI Aayog"],a:2,e:"The RBI publishes the half-yearly Financial Stability Report, reflecting the FSDC's assessment of systemic risk."},
+  {q:"The Western Ghats do NOT pass through which state?",o:["Kerala","Maharashtra","Odisha","Karnataka"],a:2,e:"The Western Ghats run along the western coast — not Odisha, which lies on the eastern side."},
+  {q:"'Mission Karmayogi' is associated with the reform of what?",o:["Agricultural markets","Civil services capacity building","Renewable energy","Digital payments"],a:1,e:"Mission Karmayogi is the National Programme for Civil Services Capacity Building."}
+];
+// premium tests reuse a bank that carries concept videos for solutions
+const PREMIUM_Q=DAILY_Q.map(q=>({...q,vid:'M7lc1UVf-VE'}));
+
+/* ===== QUIZ ENGINE (solutions deferred to end) ===== */
+let SET,TYPE,ctxId,qi,score,seconds,timerId,answers;
+function quizHome(){document.getElementById('quizMount').innerHTML=`
+  <div class="card quiz-start"><span class="badge">Free · Daily Quiz</span><h2>Today's Current Affairs Quiz</h2>
+  <p>${DAILY_Q.length} questions from the last 24 hours. Answer all, then submit to see your score and solutions.</p>
+  <div class="qmeta"><div><div class="n">${DAILY_Q.length}</div><small>Questions</small></div><div><div class="n">3:00</div><small>Timer</small></div><div><div class="n">+1</div><small>Streak</small></div></div>
+  <button class="btn pri" onclick="startQuiz(DAILY_Q,'daily',null,180)">Start quiz →</button></div>`;}
+function startQuiz(set,type,cid,secs){SET=set;TYPE=type;ctxId=cid;qi=0;score=0;seconds=secs||180;answers=new Array(set.length).fill(null);
+  document.getElementById('quizMount').innerHTML=`
+  <div class="qhead"><div class="prog"><i id="qProg" style="width:0%"></i></div><div class="timer" id="qTimer"></div></div>
+  <div class="card qcard"><div class="qn" id="qN"></div><div class="qt" id="qT"></div><div class="opts" id="qO"></div>
+  <div class="qfoot"><button class="btn ghost" id="qPrev" onclick="prevQ()">← Prev</button><button class="btn pri" id="qNext" onclick="nextQ()">Next →</button></div></div>
+  <p class="navhint">Pick an answer and move on — explanations and videos appear after you submit the test.</p>`;
+  renderQ();startTimer();}
+function startTimer(){clearInterval(timerId);timerId=setInterval(()=>{seconds--;const m=Math.floor(seconds/60),s=String(Math.max(seconds%60,0)).padStart(2,'0');const t=qTimer;t.textContent=`${m}:${s}`;t.classList.toggle('warn',seconds<=30);if(seconds<=0){clearInterval(timerId);finish();}},1000);}
+function renderQ(){const Q=SET[qi];qN.textContent=`Question ${qi+1} of ${SET.length}`;qT.textContent=Q.q;qProg.style.width=((qi+1)/SET.length*100)+'%';
+  qPrev.style.visibility=qi===0?'hidden':'visible';qNext.textContent=qi===SET.length-1?'Submit test →':'Next →';
+  const keys=['A','B','C','D'];qO.innerHTML='';
+  Q.o.forEach((o,i)=>{const b=document.createElement('button');b.className='opt'+(answers[qi]===i?' sel':'');b.innerHTML=`<span class="key">${keys[i]}</span><span>${o}</span>`;b.onclick=()=>pick(i);qO.appendChild(b);});}
+function pick(i){answers[qi]=i;document.querySelectorAll('#qO .opt').forEach((o,idx)=>o.classList.toggle('sel',idx===i));}
+function prevQ(){if(qi>0){qi--;renderQ();}}
+function nextQ(){if(qi<SET.length-1){qi++;renderQ();}else finish();}
+function finish(){clearInterval(timerId);score=0;SET.forEach((Q,i)=>{if(answers[i]===Q.a)score++;});const pct=Math.round(score/SET.length*100);
+  if(ctxId){const t=TESTS.find(x=>x.id===ctxId);if(t){t.status='done';t.score=score;t.owned=true;}}
+  document.getElementById('quizMount').innerHTML=`
+  <div class="card result"><div class="ring" style="--p:${pct}"><i><b>${score}</b><span>of ${SET.length}</span></i></div>
+  <h2>${pct>=80?'Outstanding! 🏆':pct>=50?'Solid effort 👏':'Keep going 💪'}</h2>
+  <p class="rs">Test submitted. Review every question below.</p>
+  <div class="rstats"><div class="s ok"><div class="n">${score}</div><small>Correct</small></div><div class="s no"><div class="n">${SET.length-score}</div><small>Wrong</small></div><div class="s"><div class="n">${pct}%</div><small>Accuracy</small></div><div class="s"><div class="n">#318</div><small>${TYPE==='daily'?'Daily rank':'AIR (est.)'}</small></div></div>
+  <div style="display:flex;gap:10px;justify-content:center"><button class="btn ghost" onclick="${TYPE==='daily'?'quizHome()':"go('tests')"}">${TYPE==='daily'?'Retake':'Back to tests'}</button><button class="btn pri" onclick="showSolutions()">View solutions ↓</button></div></div>
+  <div id="solMount" style="margin-top:18px"></div>`;}
+function showSolutions(){const keys=['A','B','C','D'];
+  let h=`<h2 style="font-size:18px;margin:8px 2px 14px">Solutions</h2>`;
+  SET.forEach((Q,i)=>{h+=`<div class="card solq"><div class="sqh">${i+1}. ${Q.q}</div>`;
+    Q.o.forEach((o,idx)=>{const isC=idx===Q.a,isU=idx===answers[i];const cls=isC?'c':(isU?'x':'');const tag=isC?'<span class="yt">correct</span>':(isU?'<span class="yt">your answer</span>':'');h+=`<div class="sopt ${cls}"><span class="sk">${keys[idx]}</span>${o}${tag}</div>`;});
+    h+=`<div class="exp"><b>Explanation</b>${Q.e||'—'}</div>`;
+    if(TYPE!=='daily'&&Q.vid)h+=`<div class="vsol"><div class="vlbl">▷ Concept video <span class="pin">· plays here, no redirect</span></div><div class="vframe"><iframe src="https://www.youtube.com/embed/${Q.vid}?rel=0" allowfullscreen></iframe></div></div>`;
+    h+=`</div>`;});
+  document.getElementById('solMount').innerHTML=h;document.getElementById('solMount').scrollIntoView({behavior:'smooth'});}
+
+/* ===== TESTS (owned first + month groups) ===== */
+let TESTS=[
+  {id:'w26',type:'Weekly Mega Test',label:'Week 26',sub:'22–28 Jun',month:'June 2026',meta:'100 Q · 120 min',status:'live',owned:true,locked:false,kind:'weekly'},
+  {id:'m5',type:'Monthly Grand Test',label:'May Grand Test',sub:'May',month:'May 2026',meta:'150 Q · 180 min',status:'done',score:118,owned:true,locked:false,kind:'monthly'},
+  {id:'m6',type:'Monthly Grand Test',label:'June Grand Test',sub:'Last day',month:'June 2026',meta:'150 Q · 180 min',status:'sched',owned:false,locked:false,note:'Live 30 Jun',kind:'monthly'},
+  {id:'w25',type:'Weekly Mega Test',label:'Week 25',sub:'15–21 Jun',month:'June 2026',meta:'100 Q · 120 min',status:'live',owned:false,locked:true,price:49,kind:'weekly'},
+  {id:'w24',type:'Weekly Mega Test',label:'Week 24',sub:'08–14 Jun',month:'June 2026',meta:'100 Q · 120 min',status:'live',owned:false,locked:true,price:49,kind:'weekly'},
+  {id:'w22',type:'Weekly Mega Test',label:'Week 22',sub:'25–31 May',month:'May 2026',meta:'100 Q · 120 min',status:'live',owned:false,locked:true,price:49,kind:'weekly'},
+  {id:'w21',type:'Weekly Mega Test',label:'Week 21',sub:'18–24 May',month:'May 2026',meta:'100 Q · 120 min',status:'live',owned:false,locked:true,price:49,kind:'weekly'},
+  {id:'w18',type:'Weekly Mega Test',label:'Week 18',sub:'27 Apr–03 May',month:'April 2026',meta:'100 Q · 120 min',status:'live',owned:false,locked:true,price:49,kind:'weekly'},
+  {id:'m4',type:'Monthly Grand Test',label:'April Grand Test',sub:'April',month:'April 2026',meta:'150 Q · 180 min',status:'live',owned:false,locked:true,price:149,kind:'monthly'}
+];
+function badge2(t){if(t.owned&&t.status==='done')return'<span class="badge2 b-own">Completed</span>';if(t.owned)return'<span class="badge2 b-own">Owned</span>';if(t.locked)return'<span class="badge2 b-lock">Locked</span>';if(t.status==='sched')return'<span class="badge2 b-sched">Scheduled</span>';return'<span class="badge2 b-live">Live</span>';}
+function actBtn(t){
+  if(t.locked)return `<button class="btn pri sm" onclick="unlock('${t.id}')">🔓 ₹${t.price}</button>`;
+  if(t.status==='sched')return `<button class="btn ghost sm" disabled>${t.note||'Soon'}</button>`;
+  if(t.status==='done')return `<button class="btn ghost sm" onclick="openTest('${t.id}')">Review →</button>`;
+  return `<button class="btn pri sm" onclick="openTest('${t.id}')">Take →</button>`;}
+function openTest(id){const t=TESTS.find(x=>x.id===id);startQuiz(PREMIUM_Q,t.kind,id, t.kind==='monthly'?180:180);go('quiz');}
+function renderTests(){
+  const yours=TESTS.filter(t=>t.owned);
+  document.getElementById('yourTests').innerHTML=yours.length?yours.map(t=>`<div class="card tcard"><div class="tt">${t.type}</div><h3>${t.label}</h3><div class="meta">${t.sub} · ${t.meta}</div><div class="statline"><span class="dot ${t.status==='done'?'done':'live'}"></span> ${t.status==='done'?'Completed · '+t.score+'/150':'Live now'}</div>${actBtn(t)}</div>`).join(''):'<p class="muted">No active tests yet.</p>';
+  const months=[];TESTS.forEach(t=>{if(!months.includes(t.month))months.push(t.month);});
+  document.getElementById('monthList').innerHTML=months.map((m,idx)=>{
+    const items=TESTS.filter(t=>t.month===m).sort((a,b)=>(a.owned?0:1)-(b.owned?0:1)||(a.locked?1:0)-(b.locked?1:0));
+    return `<div class="card month-acc ${idx===0?'open':''}"><div class="month-head" onclick="this.parentElement.classList.toggle('open')"><h3>${m}</h3><span class="cnt">${items.length} tests</span><span class="chev">▾</span></div>
+      <div class="month-body">${items.map(t=>`<div class="tmini"><div class="ti"><h4>${t.type} · ${t.label}</h4><div class="m">${t.sub} · ${t.meta}</div></div>${badge2(t)}<div class="act">${actBtn(t)}</div></div>`).join('')}</div></div>`;
+  }).join('');
+}
+function unlock(id){const t=TESTS.find(x=>x.id===id);if(confirm(`Pay ₹${t.price} via Razorpay to unlock "${t.type} · ${t.label}"?\n(Prototype — simulating success.)`)){t.locked=false;t.owned=true;renderTests();}}
+
+/* ===== CONCEPTS ===== */
+let CONCEPTS=[
+  {id:1,title:'Fundamental Rights — explained',subj:'Polity',vid:'M7lc1UVf-VE',access:['free','weekly','monthly','quarterly','yearly'],notes:`<h4>Fundamental Rights (Art. 12–35)</h4><ul><li>Six categories: <span class="kw">Equality</span>, Freedom, Against Exploitation, Religion, Cultural, Remedies.</li><li>Article 32 — the "<span class="kw">heart and soul</span>" of the Constitution.</li></ul>`},
+  {id:2,title:'Monetary policy & the RBI',subj:'Economy',vid:'M7lc1UVf-VE',access:['weekly','monthly','quarterly','yearly'],notes:`<h4>Monetary policy tools</h4><ul><li><span class="kw">Repo rate</span>: rate at which RBI lends to banks.</li><li>MPC: 6 members, targets 4% (±2%) inflation.</li></ul>`},
+  {id:3,title:'Indian monsoon & climate',subj:'Geography',vid:'M7lc1UVf-VE',access:['monthly','quarterly','yearly'],notes:`<h4>The monsoon</h4><ul><li>SW monsoon: Jun–Sep, ~75% of annual rainfall.</li><li><span class="kw">ITCZ</span> shift drives the wind reversal.</li></ul>`}
+];
+let activeC=1;
+function canViewConcept(c){return c.access&&(c.access.includes('free')||c.access.includes(CURRENT_PLAN));}
+function renderConcepts(){
+  const firstOk=CONCEPTS.find(canViewConcept);
+  if(firstOk&&!(CONCEPTS.find(c=>c.id===activeC&&canViewConcept(c))))activeC=firstOk.id;
+  document.getElementById('clist').innerHTML=CONCEPTS.map(c=>{const ok=canViewConcept(c);const req=(c.access||[]).filter(a=>a!=='free').join('/')||'upgrade';return `<div class="card citem ${c.id===activeC?'on':''} ${ok?'':'lock'}" onclick="loadConcept(${c.id})"><div class="th">${ok?'▷':'🔒'}</div><div><div class="ct">${c.title}</div><div class="cs">${c.subj} · ${ok?'8–12 min':'needs '+req}</div></div>${ok?'':'<span class="acc">locked</span>'}</div>`;}).join('');
+  if(activeC)loadConcept(activeC,true);
+}
+function loadConcept(id,silent){const c=CONCEPTS.find(x=>x.id===id);if(!c)return;
+  if(!canViewConcept(c)){if(!silent)alert('This video is available on a higher plan. Upgrade to watch it.');return;}
+  activeC=id;document.getElementById('player').src=`https://www.youtube.com/embed/${c.vid}?rel=0`;document.getElementById('cNotes').innerHTML=c.notes;
+  document.querySelectorAll('#clist .citem').forEach((el,i)=>el.classList.toggle('on',CONCEPTS[i].id===id));}
+function cTab(t){document.querySelectorAll('.ctabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));const c=CONCEPTS.find(x=>x.id===activeC);document.getElementById('cNotes').innerHTML=t==='notes'?c.notes:`<h4>${c.title}</h4><p style="color:var(--muted)">${c.subj} · plays inside Bookmyexam, no redirect.</p>`;}
+
+/* ===== AFFAIRS ===== */
+let CA=[["National","RBI keeps repo rate unchanged at 6.25%","The MPC held rates steady, citing easing inflation and steady growth.","28 Jun 2026"],["Economy","India's services PMI hits 11-month high","Strong domestic demand pushed the index up, signalling robust activity.","28 Jun 2026"],["International","India, EU conclude landmark trade pact","The FTA is set to cut tariffs across pharma, textiles and auto components.","27 Jun 2026"],["Environment","New amphibian species found in Western Ghats","New bush frogs documented in the Agasthyamalai hills.","27 Jun 2026"]];
+function renderCA(){document.getElementById('caGrid').innerHTML=CA.map(c=>`<div class="card ca"><div class="top"><span class="cat ${c[0]}">${c[0]}</span><span class="bm" onclick="this.classList.toggle('on')">☆</span></div><h3>${c[1]}</h3><p>${c[2]}</p><div class="date">${c[3]} · 4 min</div></div>`).join('');}
+
+/* ===== LEADERBOARD ===== */
+const LB={Daily:[["Priya Nair","Kerala",5,1],["Rohan Mehta","Maharashtra",5,2],["Aisha Khan","Delhi",5,3],["Arjun Kumar","Karnataka",4,4,1],["Vikram Rao","Telangana",4,5]],Weekly:[["Rohan Mehta","Maharashtra",186,1],["Priya Nair","Kerala",181,2],["Arjun Kumar","Karnataka",164,3,1],["Aisha Khan","Delhi",159,4]],Monthly:[["Priya Nair","Kerala",742,1],["Rohan Mehta","Maharashtra",731,2],["Arjun Kumar","Karnataka",684,5,1]],"All-time":[["Rohan Mehta","Maharashtra",9840,1],["Priya Nair","Kerala",9712,2],["Arjun Kumar","Karnataka",8612,7,1]]};
+const ini=n=>n.split(' ').map(w=>w[0]).join('').slice(0,2);
+function renderLB(tab){let h=`<div class="lb-row head"><div>Rank</div><div>Aspirant</div><div>State</div><div style="text-align:right">Score</div></div>`;LB[tab].forEach(r=>{const[n,st,sc,rk,me]=r;const md=rk<=3?`<span class="medal m${rk}">${rk}</span>`:rk;h+=`<div class="lb-row ${me?'me':''}"><div class="lb-rank">${md}</div><div class="lb-name"><span class="av">${ini(n)}</span>${n}${me?'<span class="me-tag">YOU</span>':''}</div><div class="lb-state">${st}</div><div class="lb-score">${sc.toLocaleString()}</div></div>`;});document.getElementById('lbList').innerHTML=h;}
+document.querySelectorAll('#lbTabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#lbTabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderLB(b.dataset.t);});
+
+/* ===== ADMIN: CREATE TEST ===== */
+let building=[];
+function isDaily(){return document.getElementById('ctType').value==='Daily Quiz';}
+function onCadence(){
+  const t=document.getElementById('ctType').value;
+  document.getElementById('vidWrap').style.display=isDaily()?'none':'block';
+  const hints={'Daily Quiz':'⏱ Daily quizzes publish immediately at 06:00 IST. No explanation videos needed.','Weekly Mega Test':'📅 Weekly tests release every Sunday. Solutions include concept videos.','Monthly Grand Test':'📅 Monthly tests release on the last day of the month.','Quarterly Test':'📅 Quarterly tests release on the scheduled date.'};
+  document.getElementById('schedHint').textContent=hints[t];
+}
+function addMode(m){document.querySelectorAll('.add-tabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));document.getElementById('manualPane').style.display=m==='manual'?'block':'none';document.getElementById('excelPane').style.display=m==='excel'?'block':'none';}
+function addManual(){
+  const q=mQ.value.trim(),A=mA.value.trim(),B=mB.value.trim(),C=mC.value.trim(),D=mD.value.trim(),e=mE.value.trim();
+  const a=+document.querySelector('input[name=mc]:checked').value;
+  if(!q||!A||!B||!C||!D){alert('Fill the question and all four options.');return;}
+  const item={q,o:[A,B,C,D],a,e:e||'Explanation to be added.'};if(!isDaily()&&mV.value.trim())item.vid=ytId(mV.value);
+  building.push(item);renderBuilt();mQ.value=mA.value=mB.value=mC.value=mD.value=mE.value=mV.value='';
+}
+function delBuilt(i){building.splice(i,1);renderBuilt();}
+function renderBuilt(){
+  document.getElementById('bCount').textContent=building.length;
+  const keys=['A','B','C','D'];
+  document.getElementById('bList').innerHTML=building.length?building.map((x,i)=>`<div class="bq"><span class="bn">${i+1}</span><span class="bt">${x.q.slice(0,70)}${x.q.length>70?'…':''}</span><span class="ba">${keys[x.a]} ✓</span>${x.vid?'<span class="bv">video</span>':''}<span class="bx" onclick="delBuilt(${i})">✕</span></div>`).join(''):'<p class="muted">No questions yet. Add them manually or upload an Excel file.</p>';
+}
+function publishTest(){
+  if(!building.length){alert('Add at least one question.');return;}
+  const type=document.getElementById('ctType').value,date=document.getElementById('ctDate').value;
+  const d=new Date(date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+  if(isDaily()){DAILY_Q=building.map(({vid,...r})=>r);statQ.textContent=DAILY_Q.length;}
+  else{
+    const tag=type.includes('Weekly')?'':'International';
+    document.getElementById('schedList').insertAdjacentHTML('afterbegin',`<div class="ml"><span class="cat ${tag}">${type.split(' ')[0]}</span><span class="mt">${type} · ${building.length} Q</span><span class="md">Sched · ${d}</span></div>`);
+    statT.textContent=+statT.textContent+1;
+  }
+  flash('ctSaved');building=[];renderBuilt();
+}
+/* Excel */
+const HEADERS=["Question","Option A","Option B","Option C","Option D","Correct (A/B/C/D)","Explanation","Concept video URL"];
+function downloadTemplate(){const rows=[HEADERS,["Who is the ex-officio Chairperson of NITI Aayog?","The President","The Prime Minister","The Finance Minister","The RBI Governor","B","The Prime Minister of India chairs NITI Aayog.","https://www.youtube.com/watch?v=M7lc1UVf-VE"],["The 'Bharatmala' project relates to which sector?","Railways","Highways & roads","Ports","Airports","B","Bharatmala is a programme for national highways and economic corridors.","https://youtu.be/M7lc1UVf-VE"]];const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:42},{wch:16},{wch:16},{wch:16},{wch:16},{wch:14},{wch:46},{wch:40}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Questions");XLSX.writeFile(wb,"bookmyexam-question-template.xlsx");}
+function ytId(u){if(!u)return'';const m=String(u).match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);return m?m[1]:(String(u).trim().length===11?String(u).trim():'');}
+function readFile(file){if(!file)return;const rd=new FileReader();rd.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,blankrows:false}).slice(1).filter(r=>r&&r[0]);let added=0;rows.forEach(r=>{const a={A:0,B:1,C:2,D:3}[String(r[5]||'A').trim().toUpperCase()]??0;const o=[r[1],r[2],r[3],r[4]].map(x=>String(x||'').trim());if(!String(r[0]).trim()||!o.every(Boolean))return;const item={q:String(r[0]).trim(),o,a,e:String(r[6]||'').trim()||'Explanation to be added.'};if(!isDaily()&&ytId(r[7]))item.vid=ytId(r[7]);building.push(item);added++;});renderBuilt();if(added)addMode('manual');else alert('No valid rows found. Use the template format.');}catch(err){alert('Could not read that file.');console.error(err);}};rd.readAsArrayBuffer(file);}
+(function(){const dz=document.getElementById('drop');if(!dz)return;['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over');}));dz.addEventListener('drop',e=>{if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0]);});})();
+
+/* ===== ADMIN: affairs ===== */
+function flash(id){const e=document.getElementById(id);e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2000);}
+function addAffair(){const cat=caCat.value,t=caTitle.value.trim(),b=caBody.value.trim();if(!t||!b){alert('Add a headline and summary.');return;}const d=new Date(caDate.value).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});CA.unshift([cat,t,b,d]);renderCA();renderAdmCA();caTitle.value=caBody.value='';flash('caSaved');}
+function renderAdmCA(){document.getElementById('caAdmList').innerHTML='<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Recently published</div>'+CA.slice(0,4).map(c=>`<div class="ml"><span class="cat ${c[0]}">${c[0]}</span><span class="mt">${c[1]}</span><span class="md">${c[3]}</span></div>`).join('');}
+
+/* ===== RANK VISIBILITY + ACCESS ===== */
+const CURRENT_PLAN='weekly'; // demo student's plan
+let RANK_VISIBILITY={guest:true,weekly:true,monthly:true,quarterly:true,yearly:true};
+function setRank(key,val){RANK_VISIBILITY[key]=val;}
+function applyRankVisibility(){
+  const vis=RANK_VISIBILITY[CURRENT_PLAN]!==false;
+  const hero=document.getElementById('rankHero');if(hero)hero.style.display=vis?'':'none';
+  document.querySelectorAll('#nav button[data-v="leaderboard"],#mnav button[data-v="leaderboard"]').forEach(b=>b.style.display=vis?'':'none');
+  if(!vis&&document.getElementById('leaderboard').classList.contains('on'))go('dashboard');
+  renderBanners();
+}
+
+/* ===== BANNERS (ads) ===== */
+let BANNERS=[
+  {id:1,bg:'linear-gradient(120deg,#4F46E5,#7C3AED)',title:'Crack UPSC 2026 — Quarterly plan, 30% off',sub:'3 months of mega tests, ranks & concept videos',link:'https://bookmyexam.in/offers/quarterly'},
+  {id:2,bg:'linear-gradient(120deg,#0F766E,#16A34A)',title:'Refer a friend, get a free month',sub:'Share your code — you both win',link:null}
+];
+let bannerIdx=0,bannerTimer=null;
+let BANNER_VISIBILITY={guest:true,weekly:true,monthly:true,quarterly:true,yearly:true};
+function setBannerVis(key,val){BANNER_VISIBILITY[key]=val;renderBanners();}
+function bannerHTML(b){
+  const inner=b.img?`<img src="${b.img}" alt="banner">`:`<div class="banner-ph" style="background:${b.bg||'linear-gradient(120deg,#4F46E5,#7C3AED)'}"><div><div class="bt">${b.title||''}</div><div class="bs">${b.sub||''}</div></div>${b.link?'<span class="bcta">Learn more →</span>':''}<span class="banner-ad">Sponsored</span></div>`;
+  return `<div class="banner-slide" ${b.link?`onclick="window.open('${b.link}','_blank')" style="cursor:pointer"`:''}>${inner}</div>`;
+}
+function renderBanners(){
+  const slot=document.getElementById('bannerSlot');if(!slot)return;
+  if(BANNER_VISIBILITY[CURRENT_PLAN]===false||!BANNERS.length){slot.style.display='none';clearInterval(bannerTimer);return;}
+  slot.style.display='block';
+  slot.innerHTML=`<div class="banner-wrap"><div class="banner-track" id="bTrack">${BANNERS.map(bannerHTML).join('')}</div>${BANNERS.length>1?`<div class="banner-dots" id="bDots">${BANNERS.map((b,i)=>`<span class="bdot ${i===0?'on':''}" onclick="goBanner(${i})"></span>`).join('')}</div>`:''}</div>`;
+  bannerIdx=0;updateBanner();clearInterval(bannerTimer);
+  if(BANNERS.length>1)bannerTimer=setInterval(()=>{bannerIdx=(bannerIdx+1)%BANNERS.length;updateBanner();},5000);
+}
+function updateBanner(){const t=document.getElementById('bTrack');if(t)t.style.transform=`translateX(-${bannerIdx*100}%)`;document.querySelectorAll('#bDots .bdot').forEach((d,i)=>d.classList.toggle('on',i===bannerIdx));}
+function goBanner(i){bannerIdx=i;updateBanner();}
+/* admin banner upload */
+let pendingBannerImg=null;
+function loadBannerImg(file){if(!file)return;const rd=new FileReader();rd.onload=e=>{pendingBannerImg=e.target.result;const p=document.getElementById('bPrev');p.src=pendingBannerImg;document.getElementById('bPrevWrap').style.display='block';};rd.readAsDataURL(file);}
+function addBanner(){
+  if(!pendingBannerImg){alert('Upload a banner image first.');return;}
+  const link=document.getElementById('bLink').value.trim()||null;
+  BANNERS.push({id:Date.now(),img:pendingBannerImg,link});
+  renderAdmBanners();pendingBannerImg=null;document.getElementById('bLink').value='';document.getElementById('bfile').value='';document.getElementById('bPrevWrap').style.display='none';flash('bSaved');
+}
+function delBanner(id){BANNERS=BANNERS.filter(b=>b.id!==id);renderAdmBanners();}
+function renderAdmBanners(){
+  document.getElementById('bAdmList').innerHTML='<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Live banners · '+BANNERS.length+'</div>'+
+    BANNERS.map(b=>{const thumb=b.img?`<img class="bthumb" src="${b.img}">`:`<span class="bthumb" style="background:${b.bg}"></span>`;return `<div class="ml">${thumb}<span class="mt">${b.title||'Uploaded banner'}</span><span class="md">${b.link?'🔗 link':'no link'}</span><span class="bx" onclick="delBanner(${b.id})">✕</span></div>`;}).join('');
+}
+
+/* ===== ADMIN: concept library ===== */
+function previewAC(url){const id=ytId(url);if(id)document.querySelector('#acPrev iframe').src=`https://www.youtube.com/embed/${id}?rel=0`;}
+function addConcept(){
+  const title=acTitle.value.trim(),subj=acSubj.value,vid=ytId(acUrl.value),notes=acNotes.value.trim();
+  if(!title||!vid){alert('Add a title and a valid YouTube link.');return;}
+  const access=['free','weekly','monthly','quarterly','yearly'].filter(t=>document.getElementById('ac_'+t).checked);
+  if(!access.length){alert('Pick at least one plan that can watch this video.');return;}
+  const html=notes?`<h4>${title}</h4>`+notes.split('\n').filter(Boolean).map(l=>`<p>${l}</p>`).join(''):`<h4>${title}</h4><p>Notes coming soon.</p>`;
+  CONCEPTS.unshift({id:Date.now(),title,subj,vid,access,notes:html});
+  renderAdmConcepts();acTitle.value=acUrl.value=acNotes.value='';flash('acSaved');
+}
+function delConcept(id){CONCEPTS=CONCEPTS.filter(c=>c.id!==id);renderAdmConcepts();}
+function renderAdmConcepts(){
+  document.getElementById('acAdmList').innerHTML='<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Library · '+CONCEPTS.length+' videos</div>'+
+    CONCEPTS.map(c=>`<div class="ml"><span class="mt">${c.title}</span><span style="display:flex;gap:4px;flex-wrap:wrap">${c.access.map(a=>`<span class="accb">${a}</span>`).join('')}</span><span class="bx" onclick="delConcept(${c.id})">✕</span></div>`).join('');
+}
+
+/* ===== INIT ===== */
+quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
+</script>
+</body>
+</html>
