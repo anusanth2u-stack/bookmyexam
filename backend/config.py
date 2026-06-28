@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str           # service_role key — server only, NEVER ship to the browser
     supabase_anon_key: str = ""         # passed to the frontend for Supabase Auth
-    supabase_jwt_secret: str            # Project Settings -> API -> JWT secret
+    supabase_jwt_secret: str = ""            # only needed for legacy HS256 projects
 
     # App
     frontend_origin: str = "*"          # CORS; set to your domain in production
