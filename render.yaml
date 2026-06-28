@@ -1,11 +1,19 @@
-# Render Blueprint — deploy with "New +" -> "Blueprint" pointed at this repo.
-# Set the secret env vars (marked sync:false) in the Render dashboard.
+# Render Blueprint (FREE tier) — web service only.
+# Deploy with "New +" -> "Blueprint" pointed at this repo.
+# Set the secret env vars (sync:false) in the Render dashboard after creating.
+#
+# NOTE: Render's free tier has no cron jobs, so automatic ranking is omitted.
+# Ranking still works — run it manually any time with:
+#     python scripts/compute_ranks.py
+# (locally with your .env, or from the Render Shell tab). To automate it later,
+# either upgrade this to a paid cron, or use Supabase pg_cron to call
+# compute_test_ranks() on a schedule.
 services:
   - type: web
     name: bookmyexam-api
     runtime: python
-    plan: starter
-    region: singapore            # closest Render region to India
+    plan: free                   # free tier (sleeps after 15 min idle)
+    region: singapore            # closest free region to India
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn backend.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT -w 2
     healthCheckPath: /api/health
@@ -20,21 +28,3 @@ services:
         sync: false
       - key: FRONTEND_ORIGIN
         value: "*"
-      - key: RAZORPAY_KEY_ID
-        sync: false
-      - key: RAZORPAY_KEY_SECRET
-        sync: false
-
-  - type: cron
-    name: bookmyexam-ranking
-    runtime: python
-    schedule: "*/15 * * * *"      # every 15 minutes
-    buildCommand: pip install -r requirements.txt
-    startCommand: python scripts/compute_ranks.py
-    envVars:
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
