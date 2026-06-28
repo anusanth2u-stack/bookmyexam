@@ -5,9 +5,7 @@
 # NOTE: Render's free tier has no cron jobs, so automatic ranking is omitted.
 # Ranking still works — run it manually any time with:
 #     python scripts/compute_ranks.py
-# (locally with your .env, or from the Render Shell tab). To automate it later,
-# either upgrade this to a paid cron, or use Supabase pg_cron to call
-# compute_test_ranks() on a schedule.
+# To automate later, upgrade to a paid cron or use Supabase pg_cron.
 services:
   - type: web
     name: bookmyexam-api
@@ -18,6 +16,8 @@ services:
     startCommand: gunicorn backend.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT -w 2
     healthCheckPath: /api/health
     envVars:
+      - key: PYTHON_VERSION       # force a Python with prebuilt wheels (avoids pydantic-core build failure)
+        value: "3.12.7"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY
