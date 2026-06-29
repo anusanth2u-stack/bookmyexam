@@ -158,3 +158,9 @@ def create_test(body: CreateTestIn, admin: dict = Depends(require_admin)):
         }).execute()
 
     return {"test_id": test["id"], "questions": len(body.questions)}
+
+
+@router.delete("/affairs/{affair_id}")
+def delete_affair(affair_id: str, _: dict = Depends(require_admin)):
+    supabase.table("current_affairs").delete().eq("id", affair_id).execute()
+    return {"ok": True}
