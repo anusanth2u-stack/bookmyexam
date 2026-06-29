@@ -21,6 +21,30 @@
   .auth-foot{margin-top:16px;font-size:12.5px;color:#71717A}
   .auth-foot a{color:#4F46E5;cursor:pointer;font-weight:600}
   .auth-card #authSubmit{width:100%;box-sizing:border-box}
+  /* clickable plan chip */
+  .top-right .chip{cursor:pointer}
+  /* responsive banners */
+  @media(max-width:920px){
+    .banner-wrap{max-height:none}
+    .banner-slide img{height:auto !important;aspect-ratio:2/1}
+  }
+  /* mobile drawer */
+  .mdrawer{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:300}
+  .mdrawer.show{display:block}
+  .mdrawer .mpanel{position:absolute;top:0;left:0;bottom:0;width:84%;max-width:300px;background:#fff;padding:20px 14px;overflow:auto;box-shadow:2px 0 26px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:4px}
+  .mdrawer .mpanel h4{font-family:'Sora',sans-serif;margin:2px 6px 10px;font-size:16px}
+  .mdrawer .mlink{all:unset;cursor:pointer;display:flex;align-items:center;gap:11px;padding:12px;border-radius:10px;font-size:14.5px;font-weight:500;color:#18181B}
+  .mdrawer .mlink.on,.mdrawer .mlink:active{background:#EEF0FE;color:#4F46E5}
+  .mdrawer .mplan{margin:8px 6px;padding:13px;border-radius:12px;background:#EEF0FE;color:#4F46E5;font-size:13px;font-weight:600}
+  .mdrawer .mout{margin-top:auto;color:#DC2626;font-weight:600}
+  /* mock payment modal */
+  .paywrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;z-index:320;padding:18px}
+  .paywrap.show{display:grid}
+  .paycard{background:#fff;border-radius:16px;max-width:380px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+  .paycard h3{font-family:'Sora',sans-serif;font-size:19px;margin-bottom:4px}
+  .payopt{display:flex;align-items:center;gap:11px;border:1px solid #ECEBE7;border-radius:11px;padding:13px;margin-bottom:9px;cursor:pointer;font-size:14px}
+  .payopt.on{border-color:#4F46E5;background:#EEF0FE}
+  .payopt .pi{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#F4F3F0}
 </style>
 <style>
   :root{
@@ -945,6 +969,426 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
 
   /* ---------- start ---------- */
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+
+</script>
+
+<script>
+/* __REALDATA__ */
+/* ============================================================
+   Bookmyexam.in — real-data layer
+   Replaces all remaining mock numbers (dashboard rank/percentile/metrics,
+   charts, daily quiz, leaderboard) with real data from the API, or honest
+   empty states when there's nothing yet. Only active for logged-in users
+   (window.ME); the demo mode keeps its sample data.
+   ============================================================ */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function ini2(s) { s = s || 'U'; var p = String(s).split(/[ @.]/).filter(Boolean); return ((p[0] && p[0][0] || 'U') + (p[1] && p[1][0] || '')).toUpperCase(); }
+
+  /* ---------------- dashboard ---------------- */
+  window._renderDashboard = async function () {
+    if (!window.ME) return;
+    var hero = el('rankHero');
+    if (hero) hero.style.opacity = '.5';
+    var s = {};
+    try { s = await api('/api/me/stats'); } catch (e) { s = {}; }
+    if (hero) hero.style.opacity = '1';
+
+    // rank hero
+    if (hero) {
+      if (s.last_rank) {
+        hero.innerHTML =
+          '<div><div class="dh-lbl">All India Rank</div>' +
+          '<div class="dh-rank">#' + Number(s.last_rank).toLocaleString() + '</div>' +
+          '<div class="dh-subs">' +
+          (s.state_rank ? '<div><b>#' + s.state_rank + '</b><span>' + esc(s.state || 'State') + '</span></div>' : '') +
+          (s.district_rank ? '<div><b>#' + s.district_rank + '</b><span>District</span></div>' : '') +
+          '</div><div class="dh-foot">Computed from the tests you have attempted.</div></div>' +
+          '<div class="ring-lg" style="--p:' + Math.round(s.last_percentile || 0) + '"><i><b>' + (s.last_percentile != null ? s.last_percentile : '—') + '</b><span>percentile</span></i></div>';
+      } else {
+        hero.innerHTML =
+          '<div><div class="dh-lbl">All India Rank</div>' +
+          '<div class="dh-rank" style="font-size:26px;line-height:1.2">No rank yet</div>' +
+          '<div class="dh-foot">Attempt a ranked Weekly or Monthly test. Ranks are computed after the test window closes — you are ranked only on tests you actually sit.</div></div>' +
+          '<div class="ring-lg" style="--p:0"><i><b>—</b><span>percentile</span></i></div>';
+      }
+    }
+
+    // metrics (drop the fake +8 / -2% deltas)
+    var m = document.querySelectorAll('.metrics .metric');
+    if (m[0]) { m[0].querySelector('.v').textContent = s.tests_attempted || 0; m[0].querySelector('.k').textContent = 'Tests attempted'; }
+    if (m[1]) { m[1].querySelector('.v').textContent = (s.accuracy != null ? s.accuracy + '%' : '0%'); m[1].querySelector('.k').textContent = 'Accuracy'; }
+    if (m[2]) { m[2].querySelector('.v').textContent = (s.daily_quiz_done ? 'Done' : '—'); m[2].querySelector('.k').textContent = "Today's quiz"; }
+    document.querySelectorAll('.metrics .metric .d').forEach(function (d) { d.remove(); });
+
+    // charts
+    drawCharts(s.recent || []);
+
+    // CTA
+    var cta = document.querySelector('section#dashboard .cta') || document.querySelector('.cta');
+    if (cta) {
+      var big = cta.querySelector('.big'), p = cta.querySelector('p');
+      if (!s.daily_quiz_available) { if (big) big.textContent = 'No quiz today'; if (p) p.textContent = 'Check back when a daily quiz is published.'; }
+      else if (s.daily_quiz_done) { if (big) big.textContent = 'Daily quiz completed'; if (p) p.textContent = 'You have attempted today\u2019s quiz. Come back tomorrow.'; }
+      else { if (big) big.textContent = 'Today\u2019s quiz is ready'; if (p) p.textContent = 'Attempt today\u2019s daily quiz to get on the board.'; }
+    }
+  };
+
+  function destroyChart(c) { try { if (window.Chart && Chart.getChart) { var x = Chart.getChart(c); if (x) x.destroy(); } } catch (e) {} }
+  function drawCharts(recent) {
+    var prog = el('cProg'), subj = el('cSubj');
+    [prog, subj].forEach(destroyChart);
+    if (!recent.length) {
+      [prog, subj].forEach(function (c) { if (c) { var box = c.parentNode; box.innerHTML = '<div style="display:grid;place-items:center;height:100%;min-height:160px;color:var(--muted);font-size:13px">No data yet — attempt a test</div>'; } });
+      return;
+    }
+    if (prog && window.Chart) new Chart(prog, { type: 'line', data: { labels: recent.map(function (r, i) { return 'T' + (i + 1); }), datasets: [{ data: recent.map(function (r) { return r.score || 0; }), borderColor: '#4F46E5', backgroundColor: 'rgba(79,70,229,.08)', fill: true, tension: .4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#4F46E5', pointBorderColor: '#fff', pointBorderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#F0EFEC' }, border: { display: false } }, x: { grid: { display: false }, border: { display: false } } } } });
+    if (subj && window.Chart) new Chart(subj, { type: 'bar', data: { labels: recent.map(function (r, i) { return 'T' + (i + 1); }), datasets: [{ data: recent.map(function (r) { return r.accuracy || 0; }), backgroundColor: '#4F46E5', borderRadius: 5, barThickness: 20 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, grid: { color: '#F0EFEC' }, border: { display: false }, ticks: { callback: function (v) { return v + '%'; } } }, x: { grid: { display: false }, border: { display: false } } } } });
+  }
+
+  // stop the mock charts from drawing for real users
+  var _initCharts = window.initCharts;
+  window.initCharts = function () { if (window.ME) return; return _initCharts && _initCharts(); };
+
+  /* ---------------- daily quiz (real) ---------------- */
+  var _quizHomeMock = window.quizHome;
+  window.quizHome = async function () {
+    if (!window.ME) return _quizHomeMock && _quizHomeMock();
+    var mount = el('quizMount'); if (!mount) return;
+    mount.innerHTML = '<div class="card" style="text-align:center;padding:34px;color:var(--muted)">Loading today\u2019s quiz…</div>';
+    try {
+      var q = await api('/api/daily-quiz');
+      window._quiz = q;
+      mount.innerHTML =
+        '<div class="card" style="text-align:center;padding:30px 24px">' +
+        '<div style="font-size:34px">\u25CE</div>' +
+        '<h2 style="margin:8px 0 4px">' + esc(q.test.title) + '</h2>' +
+        '<p style="color:var(--muted);max-width:440px;margin:0 auto 18px">' + q.questions.length + ' questions. Answer all, then submit to see your score and solutions.</p>' +
+        '<div class="qmeta" style="display:flex;gap:26px;justify-content:center;margin-bottom:20px"><div><div class="n" style="font-family:var(--mono);font-size:22px;font-weight:600">' + q.questions.length + '</div><small style="color:var(--muted)">Questions</small></div><div><div class="n" style="font-family:var(--mono);font-size:22px;font-weight:600">' + (q.test.duration_minutes || 3) + ':00</div><small style="color:var(--muted)">Timer</small></div></div>' +
+        '<button class="btn pri" onclick="startRealQuiz()">Start quiz \u2192</button></div>';
+    } catch (e) {
+      mount.innerHTML = '<div class="card" style="text-align:center;padding:44px 24px"><div style="font-size:34px">\uD83D\uDDD3\uFE0F</div><h2 style="margin:10px 0 6px">No quiz today</h2><p style="color:var(--muted)">Check back when today\u2019s daily quiz is published.</p></div>';
+    }
+  };
+
+  window.startRealQuiz = function () {
+    var q = window._quiz, mount = el('quizMount'); if (!q || !mount) return;
+    var answers = {};
+    window._setAns = function (qid, oid) { answers[qid] = oid; };
+    function paint() {
+      mount.innerHTML = '<div class="card" style="padding:22px 22px 24px">' + q.questions.map(function (it, i) {
+        return '<div style="margin-bottom:20px"><div style="font-weight:600;margin-bottom:11px">' + (i + 1) + '. ' + esc(it.question) + '</div>' +
+          it.options.map(function (o) { return '<label style="display:block;border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer"><input type="radio" name="rq' + i + '" onchange="window._setAns(\'' + it.id + '\',\'' + o.id + '\')"> ' + esc(o.text) + '</label>'; }).join('') +
+          '</div>';
+      }).join('') + '<button class="btn pri" style="width:100%" onclick="window._submitQuiz()">Submit quiz \u2192</button></div>';
+    }
+    window._submitQuiz = async function () {
+      var payload = { test_id: q.test.id, answers: [], time_taken_seconds: null };
+      q.questions.forEach(function (it) { payload.answers.push({ question_id: it.id, selected_option_id: answers[it.id] || null }); });
+      try { var res = await api('/api/attempts', { method: 'POST', body: JSON.stringify(payload) }); showRealResult(res); }
+      catch (e) { alert('Submit failed: ' + e.message); }
+    };
+    paint();
+  };
+
+  function showRealResult(res) {
+    var mount = el('quizMount'); if (!mount) return;
+    var sol = (res.solutions || []).map(function (s, i) {
+      var opts = s.options.map(function (o) { var ok = o.id === s.correct_option_id; return '<div style="padding:9px 12px;border-radius:8px;margin-bottom:6px;background:' + (ok ? 'var(--green-soft)' : 'var(--bg)') + ';color:' + (ok ? 'var(--green)' : 'inherit') + '">' + (ok ? '\u2713 ' : '') + esc(o.text) + '</div>'; }).join('');
+      return '<div class="card" style="padding:16px;margin-bottom:12px"><div style="font-weight:600;margin-bottom:9px">' + (i + 1) + '. ' + esc(s.question) + '</div>' + opts + (s.explanation ? '<p style="color:var(--muted);font-size:13px;margin-top:9px">' + esc(s.explanation) + '</p>' : '') + '</div>';
+    }).join('');
+    mount.innerHTML = '<div class="card" style="text-align:center;padding:26px;margin-bottom:14px"><div style="font-size:13px;color:var(--muted)">Your score</div><div style="font-family:var(--mono);font-size:42px;font-weight:600;line-height:1.1">' + res.score + '/' + res.total + '</div><div style="color:var(--muted)">Accuracy ' + res.accuracy + '%</div></div>' + sol + '<button class="btn pri" style="width:100%" onclick="quizHome()">Done</button>';
+  }
+
+  /* ---------------- leaderboard (real) ---------------- */
+  var _renderLBMock = window.renderLB;
+  window.renderLB = async function (tab) {
+    if (!window.ME) return _renderLBMock && _renderLBMock(tab);
+    var list = el('lbList'); if (!list) return;
+    var scope = (tab || 'Daily').toLowerCase();
+    if (scope === 'all-time') scope = 'monthly';
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted)">Loading…</div>';
+    try {
+      var r = await api('/api/leaderboard?scope=' + encodeURIComponent(scope));
+      if (!r.rows || !r.rows.length) { list.innerHTML = '<div style="padding:34px;text-align:center;color:var(--muted)">No rankings yet.<br>Ranks appear after a test window closes.</div>'; return; }
+      list.innerHTML = '<div class="lb-row head"><div>Rank</div><div>Aspirant</div><div>State</div><div style="text-align:right">Score</div></div>' +
+        r.rows.map(function (row) {
+          var rk = row.national_rank, md = rk <= 3 ? '<span class="medal m' + rk + '">' + rk + '</span>' : rk;
+          var me = row.user_id === window.ME.id, nm = me ? (window.ME.full_name || 'You') : 'Aspirant';
+          return '<div class="lb-row ' + (me ? 'me' : '') + '"><div class="lb-rank">' + md + '</div><div class="lb-name"><span class="av">' + (me ? ini2(nm) : '\u2022') + '</span>' + esc(me ? 'You' : 'Aspirant') + (me ? '<span class="me-tag">YOU</span>' : '') + '</div><div class="lb-state">' + esc(row.state || '') + '</div><div class="lb-score">\u2014</div></div>';
+        }).join('');
+    } catch (e) {
+      list.innerHTML = '<div style="padding:34px;text-align:center;color:var(--muted)">Leaderboard unavailable right now.</div>';
+    }
+  };
+
+  /* ---------------- triggers ---------------- */
+  // after real data is hydrated (called at the end of hydrate for students)
+  var _arv = window.applyRankVisibility;
+  window.applyRankVisibility = function () {
+    _arv();
+    if (window.ME) { window._renderDashboard(); window.quizHome(); window.renderLB('Daily'); }
+  };
+  // refresh the relevant view on navigation
+  var _go = window.go;
+  window.go = function (v) {
+    _go(v);
+    if (window.ME) {
+      if (v === 'dashboard') window._renderDashboard();
+      else if (v === 'quiz') window.quizHome();
+      else if (v === 'leaderboard') window.renderLB('Daily');
+    }
+  };
+})();
+
+</script>
+
+<script>
+/* __V2__ */
+/* ============================================================
+   Bookmyexam.in — fixes & features layer (v2)
+   ============================================================ */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function cap(s) { s = s || ''; return s.charAt(0).toUpperCase() + s.slice(1); }
+  function fmtD(d) { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return d; } }
+  var RANKMAP = { free: 0, weekly: 1, monthly: 2, quarterly: 3, yearly: 4 };
+
+  /* ---------------- mobile drawer ---------------- */
+  function ensureDrawer() {
+    if (el('mdrawer')) return;
+    var d = document.createElement('div'); d.id = 'mdrawer'; d.className = 'mdrawer';
+    d.innerHTML = '<div class="mpanel" onclick="event.stopPropagation()"><h4>Menu</h4><div id="mlinks"></div><div id="mplanbox"></div><button class="mlink mout" onclick="window.doSignOut&&window.doSignOut()">\u21A9 Sign out</button></div>';
+    d.addEventListener('click', function () { d.classList.remove('show'); });
+    document.body.appendChild(d);
+  }
+  window.openDrawer = function () {
+    if (!window.ME && !window.DEMO) return;
+    ensureDrawer();
+    var items = (window.NAVS && window.NAVS[ROLE]) || [];
+    var cur = document.querySelector('.view.on'); var curId = cur ? cur.id : '';
+    el('mlinks').innerHTML = items.map(function (n) {
+      return '<button class="mlink ' + (n[0] === curId ? 'on' : '') + '" onclick="window._navTo(\'' + n[0] + '\')"><span>' + n[1] + '</span> ' + n[2] + '</button>';
+    }).join('');
+    var pb = el('mplanbox');
+    if (ROLE === 'student' && window.ME) {
+      var pl = window.ME.plan === 'free' ? 'Free plan' : cap(window.ME.plan) + ' plan';
+      pb.innerHTML = '<div class="mplan">' + pl + (window.ME.plan === 'free' ? ' \u00B7 <a onclick="window._navTo(\'plans\')" style="text-decoration:underline">Upgrade</a>' : '') + '</div>';
+    } else { pb.innerHTML = ''; }
+    el('mdrawer').classList.add('show');
+  };
+  window._navTo = function (v) { var d = el('mdrawer'); if (d) d.classList.remove('show'); go(v); };
+
+  // delegated: plan chip -> plans ; avatar/name -> drawer on mobile
+  document.addEventListener('click', function (e) {
+    var chip = e.target.closest('.top-right .chip');
+    if (chip && ROLE === 'student') { go('plans'); return; }
+    var av = e.target.closest('.avatar, #greeting, #subtitle');
+    if (av && window.innerWidth <= 920) window.openDrawer();
+  });
+
+  /* ---------------- concepts: fix switching + delete ---------------- */
+  window.renderConcepts = function () {
+    var list = el('clist'); if (!list) return;
+    if (!CONCEPTS.length) {
+      list.innerHTML = '<div class="card" style="padding:20px;color:var(--muted)">No concept videos yet.</div>';
+      var p0 = el('player'); if (p0) p0.src = ''; var n0 = el('cNotes'); if (n0) n0.innerHTML = '<p style="color:var(--muted)">No notes.</p>';
+      return;
+    }
+    var firstOk = CONCEPTS.find(window.canViewConcept);
+    if (firstOk && !CONCEPTS.find(function (c) { return c.id === activeC && window.canViewConcept(c); })) activeC = firstOk.id;
+    list.innerHTML = CONCEPTS.map(function (c) {
+      var ok = window.canViewConcept(c);
+      var req = (c.access || []).filter(function (a) { return a !== 'free'; }).join('/') || 'upgrade';
+      return '<div class="card citem ' + (c.id === activeC ? 'on' : '') + ' ' + (ok ? '' : 'lock') + '" onclick="loadConcept(\'' + c.id + '\')"><div class="th">' + (ok ? '\u25B7' : '\uD83D\uDD12') + '</div><div><div class="ct">' + esc(c.title) + '</div><div class="cs">' + esc(c.subj || '') + ' \u00B7 ' + (ok ? 'video' : 'needs ' + req) + '</div></div>' + (ok ? '' : '<span class="acc">locked</span>') + '</div>';
+    }).join('');
+    if (activeC) loadConcept(activeC, true);
+  };
+  window.loadConcept = function (id, silent) {
+    var c = CONCEPTS.find(function (x) { return x.id === id; }); if (!c) return;
+    if (!window.canViewConcept(c)) { if (!silent) alert('This video is on a higher plan. Upgrade to watch it.'); return; }
+    activeC = id;
+    var p = el('player'); if (p) p.src = 'https://www.youtube.com/embed/' + c.vid + '?rel=0';
+    var n = el('cNotes'); if (n) n.innerHTML = c.notes || '<p style="color:var(--muted)">No notes for this video.</p>';
+    var items = document.querySelectorAll('#clist .citem');
+    CONCEPTS.forEach(function (cc, i) { if (items[i]) items[i].classList.toggle('on', cc.id === id); });
+  };
+
+  /* ---------------- banners: internal (same-origin) links ---------------- */
+  window.bannerHTML = function (b) {
+    var inner = b.img ? '<img src="' + b.img + '" alt="banner">' :
+      '<div class="banner-ph" style="background:' + (b.bg || 'linear-gradient(120deg,#4F46E5,#7C3AED)') + '"><div><div class="bt">' + esc(b.title || '') + '</div></div></div>';
+    var internal = null;
+    if (b.link) {
+      var L = String(b.link).trim();
+      if (L.charAt(0) === '#') internal = L.slice(1);
+      else { try { var u = new URL(L, location.origin); if (u.origin === location.origin && u.hash) internal = u.hash.slice(1); } catch (e) {} }
+    }
+    var click = '';
+    if (internal) click = 'onclick="go(\'' + internal.toLowerCase() + '\')" style="cursor:pointer"';
+    else if (b.link) click = 'onclick="window.open(\'' + b.link + '\',\'_blank\')" style="cursor:pointer"';
+    return '<div class="banner-slide" ' + click + '>' + inner + '</div>';
+  };
+
+  /* ---------------- plans + mock payment ---------------- */
+  var PLANS = [
+    { key: 'weekly', name: 'Weekly', price: '\u20B949', sub: 'Try it out', feats: ['Current week tests', 'Daily quiz + streaks'] },
+    { key: 'monthly', name: 'Monthly', price: '\u20B9149', sub: '\u20B937 / week', feats: ['Whole month unlocked', 'PDF rank reports'] },
+    { key: 'quarterly', name: 'Quarterly', price: '\u20B9399', sub: '\u20B933 / week', pop: true, feats: ['3 months unlocked', 'Concept videos + notes'] },
+    { key: 'yearly', name: 'Annual', price: '\u20B9999', sub: '\u20B919 / week', feats: ['Full year unlocked', 'Annual mega test'] }
+  ];
+  window.renderPlans = function () {
+    var wrap = document.querySelector('#plans .plans'); if (!wrap) return;
+    var cur = (window.ME && window.ME.plan) || 'free';
+    var curRank = RANKMAP[cur] || 0;
+    var visible = PLANS.filter(function (p) { return (RANKMAP[p.key] || 0) > curRank; });
+    var html = '';
+    if (cur !== 'free') {
+      var exp = (window.ME && window.ME.plan_expires_at) ? (' \u00B7 expires ' + fmtD(window.ME.plan_expires_at)) : '';
+      html += '<div class="card" style="grid-column:1/-1;background:var(--green-soft);border-color:#bfe6cd"><b>Active plan: ' + cap(cur) + '</b>' + exp + '. Lower plans are hidden while this is active.</div>';
+    }
+    if (!visible.length) html += '<div class="card" style="grid-column:1/-1;text-align:center;padding:24px;color:var(--muted)">You\u2019re on the highest plan. \uD83C\uDF89</div>';
+    html += visible.map(function (p) {
+      return '<div class="card plan ' + (p.pop ? 'pop' : '') + '">' + (p.pop ? '<div class="pop-tag">Popular</div>' : '') +
+        '<div class="pn">' + p.name + '</div><div class="pp">' + p.price + '</div><div class="pd">' + p.sub + '</div><ul>' +
+        p.feats.map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' +
+        '<button class="btn ' + (p.pop ? 'pri' : 'ghost') + '" onclick="window.openPay(\'' + p.key + '\',\'' + p.price + '\')">Choose ' + p.name + '</button></div>';
+    }).join('');
+    wrap.innerHTML = html;
+  };
+
+  var _payPlan = null, _payMethod = 'upi';
+  var PAY_METHODS = [['upi', 'UPI', '\u25A3'], ['card', 'Card', '\uD83D\uDCB3'], ['netbanking', 'Net banking', '\uD83C\uDFE6'], ['wallet', 'Wallet', '\uD83D\uDC5B']];
+  function ensurePay() {
+    if (el('paywrap')) return;
+    var w = document.createElement('div'); w.id = 'paywrap'; w.className = 'paywrap';
+    w.innerHTML = '<div class="paycard" onclick="event.stopPropagation()"><h3 id="payTitle"></h3><p style="color:var(--muted);font-size:13px;margin-bottom:16px">Mock checkout \u2014 no real charge. Pick a method.</p><div id="payOpts"></div><button class="btn pri" style="width:100%;margin-top:8px" id="payBtn" onclick="window.payNow()">Pay now</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="document.getElementById(\'paywrap\').classList.remove(\'show\')">Cancel</button></div>';
+    w.addEventListener('click', function () { w.classList.remove('show'); });
+    document.body.appendChild(w);
+  }
+  function renderPayOpts() {
+    el('payOpts').innerHTML = PAY_METHODS.map(function (m) {
+      return '<div class="payopt ' + (m[0] === _payMethod ? 'on' : '') + '" onclick="window._setPay(\'' + m[0] + '\')"><span class="pi">' + m[2] + '</span>' + m[1] + '</div>';
+    }).join('');
+  }
+  window._setPay = function (m) { _payMethod = m; renderPayOpts(); };
+  window.openPay = function (plan, price) {
+    if (!window.ME) { alert('Please sign in first.'); return; }
+    _payPlan = plan; _payMethod = 'upi'; ensurePay();
+    el('payTitle').textContent = 'Pay ' + price + ' \u00B7 ' + cap(plan);
+    renderPayOpts(); el('paywrap').classList.add('show');
+  };
+  window.payNow = async function () {
+    var btn = el('payBtn'); if (btn) { btn.textContent = 'Processing\u2026'; btn.disabled = true; }
+    try {
+      var res = await api('/api/checkout', { method: 'POST', body: JSON.stringify({ plan: _payPlan, method: _payMethod }) });
+      if (window.ME) { window.ME.plan = res.plan; window.ME.plan_expires_at = res.plan_expires_at; }
+      el('paywrap').classList.remove('show');
+      var label = cap(res.plan) + ' plan';
+      var chip = document.querySelector('.top-right .chip'); if (chip) chip.textContent = label;
+      var sf = el('sideFoot'); if (sf) { var pt = sf.querySelector('.pt'); if (pt) pt.textContent = label; }
+      window.renderPlans();
+      // refresh access-gated content
+      try { var c = await api('/api/concepts'); CONCEPTS = c.concepts.map(function (x) { return { id: x.id, title: x.title, subj: x.subject, vid: x.video_url || '', notes: x.notes || '', access: x.access, viewable: x.viewable }; }); window.renderConcepts(); } catch (e) {}
+      try { var b = await api('/api/banners'); BANNERS = b.banners.map(function (x) { return { id: x.id, img: x.image_url, link: x.link_url, title: x.title }; }); window.renderBanners(); } catch (e) {}
+      alert('Payment successful \u2014 you are now on the ' + res.plan + ' plan.');
+    } catch (e) { alert('Payment failed: ' + (e.message || e)); }
+    if (btn) { btn.textContent = 'Pay now'; btn.disabled = false; }
+  };
+
+  /* ---------------- affairs admin: list with delete ---------------- */
+  window.loadAffairsAdmin = async function () {
+    try { var r = await api('/api/current-affairs'); window.CA_ADMIN = r.items.map(function (i) { return { id: i.id, category: i.category, title: i.title, date: fmtD(i.published_at) }; }); window.renderAdmCA(); } catch (e) {}
+  };
+  window.renderAdmCA = function () {
+    var elc = el('caAdmList'); if (!elc) return;
+    var rows = window.CA_ADMIN || [];
+    elc.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Published \u00B7 ' + rows.length + '</div>' +
+      (rows.length ? rows.map(function (c) {
+        return '<div class="ml"><span class="cat ' + c.category + '">' + esc(c.category) + '</span><span class="mt">' + esc(c.title) + '</span><span class="md">' + c.date + '</span><span class="bx" onclick="window.delAffair(\'' + c.id + '\')">\u2715</span></div>';
+      }).join('') : '<p class="muted">Nothing published yet.</p>');
+  };
+  window.delAffair = async function (id) {
+    if (!confirm('Delete this article?')) return;
+    try { await api('/api/admin/affairs/' + id, { method: 'DELETE' }); window.CA_ADMIN = (window.CA_ADMIN || []).filter(function (c) { return c.id !== id; }); window.renderAdmCA(); } catch (e) { alert(e.message); }
+  };
+  var _addAffair = window.addAffair;
+  window.addAffair = async function () { await _addAffair(); if (ROLE === 'admin') window.loadAffairsAdmin(); };
+
+  /* ---------------- excel import with progress ---------------- */
+  function xlBar(pct, label) {
+    var pane = el('excelPane'); if (!pane) return;
+    var bar = el('xlProg');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'xlProg'; bar.style.cssText = 'margin:14px 0'; bar.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px" id="xlLbl"></div><div style="height:8px;background:var(--bg);border-radius:99px;overflow:hidden"><div id="xlFill" style="height:100%;width:0;background:var(--accent);transition:width .25s"></div></div>'; pane.insertBefore(bar, pane.firstChild); }
+    bar.style.display = 'block'; el('xlFill').style.width = pct + '%'; el('xlLbl').textContent = label || '';
+  }
+  function xlHide() { var b = el('xlProg'); if (b) b.style.display = 'none'; }
+  window.readFile = function (file) {
+    if (!file) return;
+    xlBar(5, 'Reading file\u2026');
+    var rd = new FileReader();
+    rd.onprogress = function (e) { if (e.lengthComputable) xlBar(Math.round(e.loaded / e.total * 45) + 5, 'Reading file\u2026'); };
+    rd.onload = function (e) {
+      xlBar(60, 'Parsing\u2026');
+      setTimeout(function () {
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false }).slice(1).filter(function (r) { return r && r[0]; });
+          var added = 0;
+          rows.forEach(function (r, idx) {
+            var a = ({ A: 0, B: 1, C: 2, D: 3 })[String(r[5] || 'A').trim().toUpperCase()]; if (a == null) a = 0;
+            var o = [r[1], r[2], r[3], r[4]].map(function (x) { return String(x || '').trim(); });
+            if (!String(r[0]).trim() || !o.every(Boolean)) return;
+            var item = { q: String(r[0]).trim(), o: o, a: a, e: String(r[6] || '').trim() || 'Explanation to be added.' };
+            if (!isDaily() && window.ytId && window.ytId(r[7])) item.vid = window.ytId(r[7]);
+            building.push(item); added++;
+            xlBar(60 + Math.round((idx + 1) / rows.length * 40), 'Importing ' + (idx + 1) + '/' + rows.length + '\u2026');
+          });
+          renderBuilt();
+          xlBar(100, added + ' question' + (added === 1 ? '' : 's') + ' added');
+          setTimeout(function () { xlHide(); if (added) addMode('manual'); else alert('No valid rows found. Use the template format.'); }, 700);
+        } catch (err) { xlHide(); alert('Could not read that file.'); console.error(err); }
+      }, 60);
+    };
+    rd.readAsArrayBuffer(file);
+  };
+
+  /* ---------------- clear admin mock numbers ---------------- */
+  function clearAdminMock() {
+    document.querySelectorAll('#adm-overview .adm-stats .stat').forEach(function (st) {
+      var v = st.querySelector('.v'); var k = st.querySelector('.k'); var d = st.querySelector('.delta');
+      if (!v) return;
+      var key = (k && k.textContent || '').toLowerCase();
+      if (key.indexOf('user') > -1 || key.indexOf('revenue') > -1) { v.textContent = '\u2014'; if (d) d.textContent = 'n/a in MVP'; }
+    });
+  }
+
+  /* ---------------- view triggers ---------------- */
+  var _go = window.go;
+  window.go = function (v) {
+    _go(v);
+    if (!window.ME) return;
+    if (v === 'plans') window.renderPlans();
+    else if (v === 'concepts') window.renderConcepts();
+    else if (v === 'adm-affairs') window.loadAffairsAdmin();
+    else if (v === 'adm-overview') clearAdminMock();
+  };
+
+  // when an admin lands, populate real affairs list + clear mock stats shortly after
+  var _tries = 0;
+  var _kick = setInterval(function () {
+    if (window.ME && document.getElementById('app').classList.contains('show')) {
+      if (ROLE === 'admin') { window.loadAffairsAdmin(); clearAdminMock(); }
+      else { window.renderPlans(); }
+      clearInterval(_kick);
+    }
+    if (++_tries > 40) clearInterval(_kick);
+  }, 400);
 })();
 
 </script>
