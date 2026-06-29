@@ -109,8 +109,11 @@ def submit_attempt(body: SubmitIn, profile: dict = Depends(get_profile)):
     if not test:
         raise HTTPException(404, "Test not found")
     test = test[0]
-    if not test["is_free"] and not _has_access(uid, test, effective_plan(profile)):
-        raise HTTPException(403, "This test is locked. Unlock or subscribe to attempt it.")
+    if not test["is_free"]:
+        unlocked = {r["test_id"] for r in
+                    supabase.table("user_test_access").select("test_id").eq("user_id", uid).execute().data}
+        if not _test_owned(test, profile, unlocked):
+            raise HTTPException(403, "This test is locked. Unlock or subscribe to attempt it.")
 
     # build a correct-answer map
     qids = [a.question_id for a in body.answers]
@@ -154,6 +157,53 @@ def submit_attempt(body: SubmitIn, profile: dict = Depends(get_profile)):
 
 
 # ---------------------------------------------------------------- /tests
+PLAN_COVERS = {
+    "free": set(),
+    "weekly": {"weekly"},
+    "monthly": {"weekly", "monthly"},
+    "quarterly": {"weekly", "monthly", "quarterly"},
+    "yearly": {"weekly", "monthly", "quarterly", "annual"},
+}
+UNLOCK_PAISE = {"weekly": 4900, "monthly": 9900, "quarterly": 39900, "annual": 99900, "daily": 0}
+_PLAN_DAYS = {"weekly": 7, "monthly": 30, "quarterly": 90, "yearly": 365}
+
+
+def _plan_window(profile: dict):
+    """Return (start, end, effective_plan). Window is the paid period."""
+    plan = profile.get("plan", "free")
+    exp = profile.get("plan_expires_at")
+    if plan == "free" or not exp:
+        return None, None, "free"
+    try:
+        end = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+    except Exception:
+        return None, None, "free"
+    if end < datetime.now(timezone.utc):
+        return None, None, "free"
+    start = end - timedelta(days=_PLAN_DAYS.get(plan, 30))
+    return start, end, plan
+
+
+def _test_owned(test: dict, profile: dict, unlocked_ids: set) -> bool:
+    if test.get("is_free"):
+        return True
+    if test["id"] in unlocked_ids:
+        return True
+    start, end, plan = _plan_window(profile)
+    if plan == "free":
+        return False
+    if test["test_type"] not in PLAN_COVERS.get(plan, set()):
+        return False
+    gl = test.get("go_live_at")
+    if not gl or not (start and end):
+        return True
+    try:
+        g = datetime.fromisoformat(gl.replace("Z", "+00:00"))
+    except Exception:
+        return True
+    return start <= g <= end
+
+
 @router.get("/tests")
 def list_tests(profile: dict = Depends(get_profile)):
     """All published tests grouped by month, with owned/locked per user."""
@@ -161,40 +211,86 @@ def list_tests(profile: dict = Depends(get_profile)):
     uid = profile["id"]
     tests = (supabase.table("tests").select("*").eq("is_published", True)
              .neq("test_type", "daily").order("go_live_at", desc=True).execute().data)
-    owned_ids = {r["test_id"] for r in
-                 supabase.table("user_test_access").select("test_id").eq("user_id", uid).execute().data}
+    unlocked = {r["test_id"] for r in
+                supabase.table("user_test_access").select("test_id").eq("user_id", uid).execute().data}
     done_ids = {r["test_id"] for r in
                 supabase.table("results").select("test_id").eq("user_id", uid).execute().data}
 
     months: "OrderedDict[str, list]" = OrderedDict()
     for t in tests:
-        owned = t["id"] in owned_ids or _has_access(uid, t, plan)
+        owned = _test_owned(t, profile, unlocked)
         item = {
             "id": t["id"], "title": t["title"], "type": t["test_type"],
             "meta": f'{t.get("total_questions") or "?"} Q · {t["duration_minutes"]} min',
             "month": t.get("month") or "Other",
             "owned": owned, "completed": t["id"] in done_ids,
-            "locked": (not owned) and (not t["is_free"]),
-            "price_paise": t["price_paise"],
+            "locked": (not owned),
+            "unlock_paise": UNLOCK_PAISE.get(t["test_type"], 0),
             "go_live_at": t.get("go_live_at"),
         }
         months.setdefault(item["month"], []).append(item)
 
     return {"plan": plan,
-            "months": [{"month": m, "tests": sorted(v, key=lambda x: (x["locked"], not x["owned"]))}
+            "months": [{"month": m, "tests": sorted(v, key=lambda x: (x["locked"], not x["completed"]))}
                        for m, v in months.items()]}
 
 
-def _has_access(uid: str, test: dict, plan: str) -> bool:
-    """Does this user currently have access to this test?
-    Free tests are open. A paid plan covers tests live within the plan window
-    (simplified here: any non-free plan covers all non-free tests; tighten with
-    plan_expires_at vs test.go_live_at in production)."""
-    if test["is_free"]:
-        return True
-    if plan != "free":
-        return True
-    return False
+@router.get("/tests/{test_id}/quiz")
+def test_quiz(test_id: str, profile: dict = Depends(get_profile)):
+    t = supabase.table("tests").select("*").eq("id", test_id).limit(1).execute().data
+    if not t:
+        raise HTTPException(404, "Test not found")
+    t = t[0]
+    unlocked = {r["test_id"] for r in
+                supabase.table("user_test_access").select("test_id").eq("user_id", profile["id"]).execute().data}
+    if not _test_owned(t, profile, unlocked):
+        raise HTTPException(403, "This test is locked.")
+    return {"test": {"id": t["id"], "title": t["title"],
+                     "duration_minutes": t["duration_minutes"], "test_type": t["test_type"]},
+            "questions": _questions_for_test(test_id, reveal=False)}
+
+
+@router.post("/tests/{test_id}/unlock")
+def unlock_test(test_id: str, profile: dict = Depends(get_profile)):
+    """Mock-pay to unlock a single locked test."""
+    t = supabase.table("tests").select("*").eq("id", test_id).limit(1).execute().data
+    if not t:
+        raise HTTPException(404, "Test not found")
+    t = t[0]
+    price = UNLOCK_PAISE.get(t["test_type"], 0)
+    now = datetime.now(timezone.utc)
+    pay = supabase.table("payments").insert(
+        {"user_id": profile["id"], "test_id": test_id, "amount_paise": price,
+         "currency": "INR", "status": "paid", "method": "mock",
+         "invoice_number": "MOCK-" + now.strftime("%Y%m%d%H%M%S")}).execute().data
+    supabase.table("user_test_access").upsert(
+        {"user_id": profile["id"], "test_id": test_id,
+         "payment_id": (pay[0]["id"] if pay else None)},
+        on_conflict="user_id,test_id").execute()
+    return {"unlocked": True, "price_paise": price}
+
+
+@router.get("/tests/{test_id}/result")
+def test_result(test_id: str, profile: dict = Depends(get_profile)):
+    """Stored result + solutions for a test the user has attempted."""
+    res = (supabase.table("results").select("*").eq("user_id", profile["id"])
+           .eq("test_id", test_id).limit(1).execute().data)
+    if not res:
+        raise HTTPException(404, "No attempt found")
+    r = res[0]
+    att = (supabase.table("attempts").select("id").eq("user_id", profile["id"])
+           .eq("test_id", test_id).limit(1).execute().data)
+    chosen = {}
+    if att:
+        ans = (supabase.table("attempt_answers").select("question_id,selected_option_id")
+               .eq("attempt_id", att[0]["id"]).execute().data)
+        chosen = {a["question_id"]: a["selected_option_id"] for a in ans}
+    sols = _questions_for_test(test_id, reveal=True)
+    for q in sols:
+        q["your_option_id"] = chosen.get(q["id"])
+    return {"score": r["score"], "total": r["total_marks"], "accuracy": r["accuracy"],
+            "correct": r["correct_count"], "incorrect": r["incorrect_count"],
+            "solutions": sols}
 
 
 # ---------------------------------------------------------------- /concepts
