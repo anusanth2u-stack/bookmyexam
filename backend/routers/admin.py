@@ -2,6 +2,7 @@
 in the prototype: create tests (manual or bulk), upload concepts with access
 tiers, manage banners, and toggle rank/banner visibility per plan."""
 import re
+import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
@@ -126,36 +127,49 @@ class CreateTestIn(BaseModel):
 
 @router.post("/tests")
 def create_test(body: CreateTestIn, admin: dict = Depends(require_admin)):
-    """Create a test and its questions in one call. Works for the daily quiz
-    (manual or Excel-imported rows) and for scheduled weekly/monthly tests."""
+    """Create a test and its questions. Uses BULK inserts (4 DB calls total)
+    instead of one-per-question, so large tests don't time out on free tiers."""
+    if not body.questions:
+        raise HTTPException(400, "Add at least one question.")
     is_daily = body.test_type == "daily"
-    test = supabase.table("tests").insert({
-        "title": body.title, "test_type": body.test_type,
-        "duration_minutes": body.duration_minutes,
-        "total_questions": len(body.questions),
-        "is_free": is_daily or body.is_free,
-        "price_paise": body.price_paise,
-        "month": body.month or datetime.now(timezone.utc).strftime("%Y-%m"),
-        "go_live_at": body.go_live_at or datetime.now(timezone.utc).isoformat(),
-        "is_published": True,
-        "created_by": admin["id"],
-    }).execute().data[0]
-
-    for order, q in enumerate(body.questions):
-        # daily quiz: explanation only, no concept video
-        vid = None if is_daily else yt_id(q.video_url)
-        qrow = supabase.table("questions").insert({
-            "question_text": q.question, "explanation": q.explanation,
-            "video_url": vid, "created_by": admin["id"],
+    go_live = body.go_live_at or datetime.now(timezone.utc).isoformat()
+    if len(go_live) == 10:                       # date-only -> add a time
+        go_live = go_live + "T00:00:00+00:00"
+    try:
+        test = supabase.table("tests").insert({
+            "title": body.title, "test_type": body.test_type,
+            "duration_minutes": body.duration_minutes,
+            "total_questions": len(body.questions),
+            "is_free": is_daily or body.is_free,
+            "price_paise": body.price_paise,
+            "month": body.month or datetime.now(timezone.utc).strftime("%Y-%m"),
+            "go_live_at": go_live,
+            "is_published": True,
+            "created_by": admin["id"],
         }).execute().data[0]
-        opt_rows = [{"question_id": qrow["id"], "option_text": text,
-                     "is_correct": (i == q.correct_index), "option_order": i}
-                    for i, text in enumerate(q.options)]
-        supabase.table("question_options").insert(opt_rows).execute()
-        supabase.table("test_questions").insert({
-            "test_id": test["id"], "question_id": qrow["id"],
-            "question_order": order, "marks": 1,
-        }).execute()
+
+        qrows, optrows, tqrows = [], [], []
+        for order, q in enumerate(body.questions):
+            qid = str(uuid.uuid4())
+            qrows.append({
+                "id": qid, "question_text": q.question,
+                "explanation": q.explanation,
+                "video_url": (None if is_daily else yt_id(q.video_url)),
+                "created_by": admin["id"],
+            })
+            for i, text in enumerate(q.options):
+                optrows.append({"question_id": qid, "option_text": text,
+                                "is_correct": (i == q.correct_index), "option_order": i})
+            tqrows.append({"test_id": test["id"], "question_id": qid,
+                           "question_order": order, "marks": 1})
+
+        supabase.table("questions").insert(qrows).execute()
+        supabase.table("question_options").insert(optrows).execute()
+        supabase.table("test_questions").insert(tqrows).execute()
+    except HTTPException:
+        raise
+    except Exception as e:                       # surface the real DB error
+        raise HTTPException(500, f"Could not create test: {e}")
 
     return {"test_id": test["id"], "questions": len(body.questions)}
 
