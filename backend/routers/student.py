@@ -2,7 +2,7 @@
 banners, leaderboard. The backend uses the service-role client and enforces
 plan/ownership checks here in code."""
 from collections import OrderedDict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -46,10 +46,9 @@ def me(profile: dict = Depends(get_profile)):
 @router.get("/daily-quiz")
 def daily_quiz(profile: dict = Depends(get_profile)):
     """Today's free daily quiz, WITHOUT correct answers/explanations."""
-    today = datetime.now(timezone.utc).date().isoformat()
     t = (supabase.table("tests").select("*")
          .eq("test_type", "daily").eq("is_published", True)
-         .gte("go_live_at", today).order("go_live_at", desc=True).limit(1).execute())
+         .order("go_live_at", desc=True).limit(1).execute())
     if not t.data:
         raise HTTPException(404, "No daily quiz published today")
     test = t.data[0]
@@ -256,3 +255,82 @@ def current_affairs(profile: dict = Depends(get_profile)):
     rows = (supabase.table("current_affairs").select("*").eq("is_published", True)
             .order("published_at", desc=True).limit(40).execute().data)
     return {"items": rows}
+
+
+@router.get("/me/stats")
+def my_stats(profile: dict = Depends(get_profile)):
+    """Real dashboard numbers for the signed-in student. Everything is derived
+    from their actual attempts/results/rankings — no mock values."""
+    uid = profile["id"]
+    results = (supabase.table("results").select("*").eq("user_id", uid)
+               .order("created_at", desc=True).execute().data)
+    attempted = len(results)
+    accuracy = round(sum((r.get("accuracy") or 0) for r in results) / attempted, 1) if attempted else 0
+
+    ranks = (supabase.table("rankings").select("*").eq("user_id", uid)
+             .order("computed_at", desc=True).limit(1).execute().data)
+    lr = ranks[0] if ranks else {}
+
+    daily = (supabase.table("tests").select("id").eq("test_type", "daily")
+             .eq("is_published", True).order("go_live_at", desc=True).limit(1).execute().data)
+    daily_done = False
+    if daily:
+        dd = (supabase.table("results").select("id").eq("user_id", uid)
+              .eq("test_id", daily[0]["id"]).execute().data)
+        daily_done = bool(dd)
+
+    recent = [{"score": r.get("score"), "total": r.get("total_marks"),
+               "accuracy": r.get("accuracy"), "date": r.get("created_at")}
+              for r in results[:8]][::-1]
+
+    return {
+        "tests_attempted": attempted,
+        "accuracy": accuracy,
+        "last_rank": lr.get("national_rank"),
+        "last_percentile": lr.get("percentile"),
+        "state_rank": lr.get("state_rank"),
+        "district_rank": lr.get("district_rank"),
+        "state": lr.get("state"),
+        "daily_quiz_available": bool(daily),
+        "daily_quiz_done": daily_done,
+        "recent": recent,
+    }
+
+
+PLAN_DAYS = {"weekly": 7, "monthly": 30, "quarterly": 90, "yearly": 365}
+PLAN_PAISE = {"weekly": 4900, "monthly": 14900, "quarterly": 39900, "yearly": 99900}
+PLAN_RANK = {"free": 0, "weekly": 1, "monthly": 2, "quarterly": 3, "yearly": 4}
+
+
+class CheckoutIn(BaseModel):
+    plan: str
+    method: str | None = "mock"
+
+
+@router.post("/checkout")
+def checkout(body: CheckoutIn, profile: dict = Depends(get_profile)):
+    """Mock payment: upgrades the user's plan immediately (no real gateway).
+    Replace with Razorpay order + webhook verification for real money."""
+    plan = body.plan
+    if plan not in PLAN_DAYS:
+        raise HTTPException(400, "Unknown plan")
+    # don't allow downgrading to a lower/equal plan while one is active
+    current = effective_plan(profile)
+    if PLAN_RANK.get(plan, 0) <= PLAN_RANK.get(current, 0) and current != "free":
+        raise HTTPException(400, "You already have this plan or a higher one.")
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(days=PLAN_DAYS[plan])
+    supabase.table("profiles").update(
+        {"plan": plan, "plan_expires_at": expires.isoformat()}
+    ).eq("id", profile["id"]).execute()
+    sub = supabase.table("subscriptions").insert(
+        {"user_id": profile["id"], "plan": plan, "status": "active",
+         "starts_at": now.isoformat(), "ends_at": expires.isoformat()}
+    ).execute().data
+    supabase.table("payments").insert(
+        {"user_id": profile["id"], "subscription_id": (sub[0]["id"] if sub else None),
+         "amount_paise": PLAN_PAISE[plan], "currency": "INR", "status": "paid",
+         "method": body.method or "mock",
+         "invoice_number": "MOCK-" + now.strftime("%Y%m%d%H%M%S")}
+    ).execute()
+    return {"plan": plan, "plan_expires_at": expires.isoformat()}
