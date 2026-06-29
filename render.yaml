@@ -13,7 +13,7 @@ services:
     plan: free                   # free tier (sleeps after 15 min idle)
     region: singapore            # closest free region to India
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn backend.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT -w 2
+    startCommand: gunicorn backend.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT -w 2 --timeout 120
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION       # force a Python with prebuilt wheels (avoids pydantic-core build failure)
