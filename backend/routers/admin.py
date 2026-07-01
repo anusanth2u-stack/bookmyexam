@@ -214,3 +214,25 @@ def list_all_tests(_: dict = Depends(require_admin)):
     rows = (supabase.table("tests").select("id,title,test_type,total_questions,go_live_at,month")
             .order("go_live_at", desc=True).execute().data)
     return {"tests": rows}
+
+
+@router.put("/affairs/{affair_id}")
+def update_affair(affair_id: str, body: AffairIn, _: dict = Depends(require_admin)):
+    patch = {"category": body.category, "title": body.title, "body": body.body}
+    if body.published_at:
+        patch["published_at"] = body.published_at
+    if body.image_url is not None:
+        patch["image_url"] = body.image_url
+    supabase.table("current_affairs").update(patch).eq("id", affair_id).execute()
+    return {"ok": True}
+
+
+@router.put("/concepts/{concept_id}")
+def update_concept(concept_id: str, body: ConceptIn, _: dict = Depends(require_admin)):
+    patch = {"title": body.title, "subject": body.subject,
+             "video_url": yt_id(body.video_url) or body.video_url,
+             "notes": body.notes, "access": body.access}
+    if body.material_url is not None:
+        patch["material_url"] = body.material_url
+    supabase.table("concepts").update(patch).eq("id", concept_id).execute()
+    return {"ok": True}
