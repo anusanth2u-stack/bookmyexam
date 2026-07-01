@@ -69,6 +69,7 @@ class ConceptIn(BaseModel):
     video_url: str
     notes: str | None = None
     access: list[str] = ["free"]
+    material_url: str | None = None
 
 
 @router.post("/concepts")
@@ -76,7 +77,8 @@ def add_concept(c: ConceptIn, admin: dict = Depends(require_admin)):
     vid = yt_id(c.video_url) or c.video_url
     row = supabase.table("concepts").insert({
         "title": c.title, "subject": c.subject, "video_url": vid,
-        "notes": c.notes, "access": c.access, "created_by": admin["id"],
+        "notes": c.notes, "access": c.access, "material_url": c.material_url,
+        "created_by": admin["id"],
     }).execute().data[0]
     return row
 
@@ -93,12 +95,14 @@ class AffairIn(BaseModel):
     title: str
     body: str
     published_at: str | None = None
+    image_url: str | None = None
 
 
 @router.post("/affairs")
 def add_affair(a: AffairIn, admin: dict = Depends(require_admin)):
     row = supabase.table("current_affairs").insert({
         "category": a.category, "title": a.title, "body": a.body,
+        "image_url": a.image_url,
         "published_at": a.published_at or datetime.now(timezone.utc).date().isoformat(),
         "created_by": admin["id"],
     }).execute().data[0]
