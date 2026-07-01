@@ -98,6 +98,14 @@
     .qtimer .tv{font-size:18px}
     .charts-2{margin-top:12px}
   }
+  /* Your tests -> horizontal scroll carousel */
+  .your-band{display:flex !important;gap:12px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .your-band::-webkit-scrollbar{height:6px}
+  .your-band::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+  .your-band .tcard{flex:0 0 240px;scroll-snap-align:start}
+  .tperiod{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:99px;margin-bottom:6px}
+  .ml .ed{cursor:pointer;color:var(--muted);font-size:13px;margin-right:4px}
+  .ml .ed:hover{color:var(--accent)}
 </style>
 <style>
   :root{
@@ -880,7 +888,9 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
       onCadence(); renderBuilt();
     }
     await hydrate();
-    routeFromHash();
+    var _h = (location.hash || '').slice(1);
+    if (_h) routeFromHash();
+    else go(ROLE === 'admin' ? 'adm-overview' : 'dashboard');
   }
 
   /* ---------- load real data ---------- */
@@ -2261,6 +2271,173 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     }
     if (++_tries > 40) clearInterval(_kick);
   }, 500);
+})();
+
+</script>
+
+<script>
+/* __V7__ */
+/* ============================================================
+   Bookmyexam.in — periods, edit, carousel (v7)
+   ============================================================ */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function cap(s) { s = s || ''; return s.charAt(0).toUpperCase() + s.slice(1); }
+  function fmtScore(s) { return s == null ? '-' : (Math.round(s * 100) / 100); }
+
+  /* ---------------- tests: include period, render with period + carousel ---------------- */
+  function mapT(t) {
+    return { id: t.id, title: t.title || cap(t.type), kind: t.type, month: t.month || 'Other',
+      meta: t.meta || '', period: t.period || '', owned: t.owned, locked: t.locked, completed: t.completed,
+      price: Math.round((t.unlock_paise || 0) / 100), score: t.score, max: t.max_marks, accuracy: t.accuracy, rank: t.rank };
+  }
+  window._reloadTests = async function () {
+    if (!window.ME) return;
+    try {
+      var t = await api('/api/tests');
+      window.TESTS = []; t.months.forEach(function (m) { m.tests.forEach(function (x) { window.TESTS.push(mapT(x)); }); });
+      window.renderTests(); if (window._updatePlanBanner) window._updatePlanBanner();
+    } catch (e) { console.warn('tests', e); }
+  };
+  function cardYours(t) {
+    var per = t.period ? '<div class="tperiod">' + esc(t.period) + '</div>' : '';
+    if (t.completed) {
+      return '<div class="card tcard">' + per + '<div class="tt">' + esc(t.title) + '</div><div class="tm">' + esc(t.meta) + '</div>' +
+        '<div class="tstats">Score <b>' + fmtScore(t.score) + '/' + (t.max || '') + '</b> \u00B7 Acc <b>' + (t.accuracy != null ? t.accuracy + '%' : '-') + '</b>' + (t.rank ? ' \u00B7 Rank <b>#' + t.rank + '</b>' : '') + '</div>' +
+        '<button class="btn ghost sm" onclick="viewResult(\'' + t.id + '\')">Review \u2192</button></div>';
+    }
+    return '<div class="card tcard">' + per + '<div class="tt">' + esc(t.title) + '</div><div class="tm">' + esc(t.meta) + '</div><div class="tlive">\u25CF Live now</div><button class="btn pri sm" onclick="openTest(\'' + t.id + '\')">Take \u2192</button></div>';
+  }
+  function cardRow(t) {
+    var right;
+    if (t.completed) right = '<button class="btn ghost sm" onclick="viewResult(\'' + t.id + '\')">Review \u2192</button>';
+    else if (t.locked) right = '<button class="btn pri sm" onclick="unlock(\'' + t.id + '\')">\uD83D\uDD13 \u20B9' + t.price + '</button>';
+    else right = '<button class="btn pri sm" onclick="openTest(\'' + t.id + '\')">Take \u2192</button>';
+    var stat = t.completed ? '<span class="muted" style="font-size:12px">Score ' + fmtScore(t.score) + '/' + (t.max || '') + (t.rank ? ' \u00B7 #' + t.rank : '') + '</span>' : '';
+    var sub = (t.period ? t.period + ' \u00B7 ' : '') + t.meta + (t.locked ? ' \u00B7 \u20B9' + t.price + ' to unlock' : '');
+    return '<div class="trow"><div><div class="tt2">' + esc(t.title) + '</div><div class="muted" style="font-size:12px">' + esc(sub) + '</div>' + stat + '</div>' + right + '</div>';
+  }
+  window.renderTests = function () {
+    if (!window.TESTS) return;
+    var yb = el('yourTests'), ml = el('monthList');
+    var yours = window.TESTS.filter(function (t) { return t.owned; });
+    if (yb) yb.innerHTML = yours.length ? yours.map(cardYours).join('') : '<div class="card" style="padding:16px;color:var(--muted)">No active tests yet. Unlock one below, or subscribe.</div>';
+    var byMonth = {}, order = [];
+    window.TESTS.forEach(function (t) { if (!byMonth[t.month]) { byMonth[t.month] = []; order.push(t.month); } byMonth[t.month].push(t); });
+    if (ml) ml.innerHTML = order.length ? order.map(function (m, i) {
+      return '<div class="month-acc' + (i === 0 ? ' open' : '') + '"><div class="mah" onclick="this.parentNode.classList.toggle(\'open\')"><b>' + esc(m) + '</b><span class="muted">' + byMonth[m].length + ' test' + (byMonth[m].length === 1 ? '' : 's') + '</span></div><div class="mab">' + byMonth[m].map(cardRow).join('') + '</div></div>';
+    }).join('') : '<div class="card" style="padding:16px;color:var(--muted)">No tests published yet.</div>';
+  };
+
+  /* ---------------- admin edit: affairs ---------------- */
+  window._editAffairId = null;
+  window.loadAffairsAdmin = async function () {
+    try {
+      var r = await api('/api/current-affairs');
+      window.CA_ADMIN = r.items.map(function (i) { return { id: i.id, category: i.category, title: i.title, body: i.body, image: i.image_url || '', date: i.published_at }; });
+      window.renderAdmCA();
+    } catch (e) {}
+  };
+  window.renderAdmCA = function () {
+    var elc = el('caAdmList'); if (!elc) return;
+    var rows = window.CA_ADMIN || [];
+    elc.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Published \u00B7 ' + rows.length + '</div>' +
+      (rows.length ? rows.map(function (c) {
+        var d = (function () { try { return new Date(c.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch (e) { return ''; } })();
+        return '<div class="ml"><span class="cat ' + c.category + '">' + esc(c.category) + '</span><span class="mt">' + esc(c.title) + '</span><span class="md">' + d + '</span><span class="ed" onclick="window.editAffair(\'' + c.id + '\')">\u270E edit</span><span class="bx" onclick="window.delAffair(\'' + c.id + '\')">\u2715</span></div>';
+      }).join('') : '<p class="muted">Nothing published yet.</p>');
+  };
+  window.editAffair = function (id) {
+    var c = (window.CA_ADMIN || []).find(function (x) { return x.id === id; }); if (!c) return;
+    caCat.value = c.category; caTitle.value = c.title; caBody.value = c.body;
+    if (c.date) caDate.value = String(c.date).slice(0, 10);
+    window._editAffairId = id;
+    var btn = document.querySelector('#adm-affairs .fa .btn.pri'); if (btn) btn.textContent = 'Update article';
+    try { caTitle.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+  };
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    if (!t || !b) { alert('Add a headline and summary.'); return; }
+    var f = el('caImg') && el('caImg').files[0];
+    try {
+      var image = null;
+      if (f && window._sb) { var pth = 'affairs/' + Date.now() + '_' + f.name.replace(/[^\w.\-]/g, '_'); var up = await window._sb.storage.from('banners').upload(pth, f, { upsert: true }); if (up.error) throw up.error; image = window._sb.storage.from('banners').getPublicUrl(pth).data.publicUrl; }
+      var payload = { category: cat, title: t, body: b, published_at: caDate.value };
+      if (image) payload.image_url = image;
+      if (window._editAffairId) {
+        await api('/api/admin/affairs/' + window._editAffairId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editAffairId = null;
+        var btn = document.querySelector('#adm-affairs .fa .btn.pri'); if (btn) btn.textContent = 'Publish';
+      } else {
+        await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      caTitle.value = caBody.value = ''; if (el('caImg')) el('caImg').value = '';
+      if (window.flash) flash('caSaved');
+      window.loadAffairsAdmin();
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  };
+
+  /* ---------------- admin edit: concepts ---------------- */
+  window._editConceptId = null;
+  window.renderAdmConcepts = function () {
+    var elx = el('acAdmList'); if (!elx) return;
+    var list = window.CONCEPTS || [];
+    elx.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.4px">Library \u00B7 ' + list.length + ' videos</div>' +
+      list.map(function (c) {
+        return '<div class="ml"><span class="mt">' + esc(c.title) + '</span><span style="display:flex;gap:4px;flex-wrap:wrap">' + (c.access || []).map(function (a) { return '<span class="accb">' + a + '</span>'; }).join('') + '</span><span class="ed" onclick="window.editConcept(\'' + c.id + '\')">\u270E edit</span><span class="bx" onclick="delConcept(\'' + c.id + '\')">\u2715</span></div>';
+      }).join('');
+  };
+  window.editConcept = function (id) {
+    var c = (window.CONCEPTS || []).find(function (x) { return x.id === id; }); if (!c) return;
+    acTitle.value = c.title; if (el('acSubj') && c.subj) acSubj.value = c.subj;
+    acUrl.value = c.vid || ''; acNotes.value = c.notes || '';
+    ['free', 'weekly', 'monthly', 'quarterly', 'yearly'].forEach(function (k) { var box = el('ac_' + k); if (box) box.checked = (c.access || []).indexOf(k) > -1; });
+    if (window.previewAC) previewAC(c.vid || '');
+    window._editConceptId = id;
+    var btn = document.querySelector('#adm-concepts .fa .btn.pri') || document.querySelector('.fa .btn.pri'); if (btn) btn.textContent = 'Update video';
+    try { acTitle.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+  };
+  window.addConcept = async function () {
+    var title = acTitle.value.trim(), subj = acSubj.value, url = acUrl.value.trim(), notes = acNotes.value.trim();
+    if (!title || !url) { alert('Add a title and a YouTube link.'); return; }
+    var access = ['free', 'weekly', 'monthly', 'quarterly', 'yearly'].filter(function (k) { return el('ac_' + k).checked; });
+    if (!access.length) { alert('Pick at least one plan.'); return; }
+    var file = el('acFile') && el('acFile').files[0];
+    try {
+      var material = null;
+      if (file && window._sb) { var pth = 'notes/' + Date.now() + '_' + file.name.replace(/[^\w.\-]/g, '_'); var up = await window._sb.storage.from('banners').upload(pth, file, { upsert: true }); if (up.error) throw up.error; material = window._sb.storage.from('banners').getPublicUrl(pth).data.publicUrl; }
+      var payload = { title: title, subject: subj, video_url: url, notes: notes, access: access };
+      if (material) payload.material_url = material;
+      if (window._editConceptId) {
+        await api('/api/admin/concepts/' + window._editConceptId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editConceptId = null;
+        var btn = document.querySelector('#adm-concepts .fa .btn.pri'); if (btn) btn.textContent = 'Publish to library';
+      } else {
+        var row = await api('/api/admin/concepts', { method: 'POST', body: JSON.stringify(payload) });
+        if (window.CONCEPTS) CONCEPTS.unshift({ id: row.id, title: row.title, subj: row.subject, vid: row.video_url, notes: row.notes, material: row.material_url, access: row.access });
+      }
+      acTitle.value = acUrl.value = acNotes.value = ''; if (el('acFile')) el('acFile').value = '';
+      if (window._loadConcepts) window._loadConcepts(); else window.renderAdmConcepts();
+      if (window.flash) flash('acSaved');
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  };
+
+  /* ---------------- lazy-load banner + affair images ---------------- */
+  var _bh = window.bannerHTML;
+  if (_bh) window.bannerHTML = function (b) { return _bh(b).replace('<img ', '<img loading="lazy" '); };
+  var _cm = window._caMore;
+  if (_cm) window._caMore = function (a) { _cm(a); var w = a.parentNode.querySelector('.ca2-imgwrap img'); if (w) w.setAttribute('loading', 'lazy'); };
+
+  /* keep admin lists refreshed on nav */
+  var _go = window.go;
+  window.go = function (v) {
+    _go(v);
+    if (!window.ME) return;
+    if (v === 'adm-affairs') window.loadAffairsAdmin();
+    else if (v === 'adm-concepts' && window._loadConcepts) window._loadConcepts();
+  };
 })();
 
 </script>
