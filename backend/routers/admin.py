@@ -112,6 +112,7 @@ class QuestionIn(BaseModel):
     correct_index: int          # 0..3
     explanation: str | None = None
     video_url: str | None = None
+    subject: str | None = None
 
 
 class CreateTestIn(BaseModel):
@@ -155,6 +156,7 @@ def create_test(body: CreateTestIn, admin: dict = Depends(require_admin)):
                 "id": qid, "question_text": q.question,
                 "explanation": q.explanation,
                 "video_url": (None if is_daily else yt_id(q.video_url)),
+                "subject": q.subject,
                 "created_by": admin["id"],
             })
             for i, text in enumerate(q.options):
@@ -178,3 +180,33 @@ def create_test(body: CreateTestIn, admin: dict = Depends(require_admin)):
 def delete_affair(affair_id: str, _: dict = Depends(require_admin)):
     supabase.table("current_affairs").delete().eq("id", affair_id).execute()
     return {"ok": True}
+
+
+@router.post("/compute-ranks")
+def compute_ranks(_: dict = Depends(require_admin)):
+    """Compute ranks now for every test that has any results (demo helper,
+    since the free tier has no scheduled cron)."""
+    tids = {r["test_id"] for r in supabase.table("results").select("test_id").execute().data}
+    done = 0
+    for tid in tids:
+        try:
+            supabase.rpc("compute_test_ranks", {"p_test_id": tid}).execute()
+            done += 1
+        except Exception:
+            pass
+    return {"computed": done}
+
+
+@router.delete("/tests/{test_id}")
+def delete_test(test_id: str, _: dict = Depends(require_admin)):
+    """Remove a test (its questions/options/attempts cascade via FKs)."""
+    supabase.table("tests").delete().eq("id", test_id).execute()
+    return {"ok": True}
+
+
+@router.get("/tests")
+def list_all_tests(_: dict = Depends(require_admin)):
+    """All tests for the admin manage list."""
+    rows = (supabase.table("tests").select("id,title,test_type,total_questions,go_live_at,month")
+            .order("go_live_at", desc=True).execute().data)
+    return {"tests": rows}
