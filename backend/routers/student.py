@@ -327,12 +327,14 @@ def list_concepts(profile: dict = Depends(get_profile)):
     for c in rows:
         access = c.get("access") or []
         viewable = "free" in access or plan in access
+        # study notes are a paid perk: only for viewable concepts on a paid plan
+        material = c.get("material_url") if (viewable and plan != "free") else None
         out.append({
             "id": c["id"], "title": c["title"], "subject": c["subject"],
             "access": access, "viewable": viewable,
-            # only hand over the video/notes if the user may watch it
             "video_url": c["video_url"] if viewable else None,
             "notes": c["notes"] if viewable else None,
+            "material_url": material,
         })
     return {"plan": plan, "concepts": out}
 
