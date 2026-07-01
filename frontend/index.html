@@ -56,6 +56,48 @@
   .ca2 h4{font-size:15px;margin:0 0 6px;line-height:1.35}
   .ca2-body{color:#444;font-size:13.5px;line-height:1.55;margin:0}
   .ca2-more{color:var(--accent);font-weight:600;font-size:12.5px;cursor:pointer;display:inline-block;margin-top:7px}
+  /* test cards + month accordions */
+  .tcard{padding:16px;min-width:210px}
+  .tcard .tt{font-weight:600;font-size:14px;margin-bottom:2px}
+  .tcard .tm{color:var(--muted);font-size:12.5px;margin-bottom:8px}
+  .tcard .tstats{font-size:12.5px;margin-bottom:10px}
+  .tcard .tlive{color:var(--green);font-size:12.5px;margin-bottom:10px}
+  .month-acc{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--card)}
+  .month-acc .mah{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer}
+  .month-acc .mab{display:none;padding:0 12px 8px}
+  .month-acc.open .mab{display:block}
+  .trow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 6px;border-top:1px solid var(--line)}
+  .trow .tt2{font-weight:600;font-size:13.5px}
+  /* explanation video tile + modal */
+  .vtile{display:inline-flex;align-items:center;gap:8px;margin-top:10px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:13px;padding:9px 14px;border-radius:10px;cursor:pointer}
+  .vmodal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;place-items:center;z-index:340;padding:16px}
+  .vmodal.show{display:grid}
+  .vmbox{width:100%;max-width:720px;background:#000;border-radius:14px;overflow:hidden;position:relative}
+  .vmbox .vframe{position:relative;padding-top:56.25%}
+  .vmbox .vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .vmodal .vclose{position:absolute;top:16px;right:22px;color:#fff;font-size:28px;cursor:pointer;z-index:2}
+  /* dual timers + rules + review nav */
+  .qtimers{display:flex;gap:10px;margin-bottom:12px}
+  .qtimer{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px;text-align:center}
+  .qtimer .tl{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:600}
+  .qtimer .tv{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:2px}
+  .qtimer.warn .tv{color:var(--red)}
+  .rules{max-width:560px;margin:0 auto}
+  .rules .rrow{display:flex;justify-content:space-between;padding:11px 2px;border-bottom:1px solid var(--line);font-size:14px}
+  .rvnav{display:flex;justify-content:space-between;align-items:center;margin:10px 0}
+  /* mobile friendliness */
+  @media(max-width:920px){
+    .main{padding:16px 13px 94px !important}
+    .charts-2{grid-template-columns:1fr !important}
+    .dash-hero{grid-template-columns:1fr !important}
+    .banner-slide img{height:auto !important;aspect-ratio:2/1;width:100%}
+    .rstats{flex-wrap:wrap;gap:8px}
+    .plans{grid-template-columns:1fr !important}
+    .your-band{grid-template-columns:1fr !important;display:grid;gap:12px}
+    .paycard{max-width:100%}
+    .qtimer .tv{font-size:18px}
+    .charts-2{margin-top:12px}
+  }
 </style>
 <style>
   :root{
@@ -325,6 +367,7 @@
     <section class="view" id="leaderboard">
       <div class="card rankinfo"><span class="ri">🏅</span><div><h4>How ranking works</h4><p>You're ranked against everyone who sat the <b>same test</b>, by percentile. The Daily Quiz is free, so everyone gets a daily rank. All-India Rank comes from the paid Weekly & Monthly Mega Tests — you're ranked only on tests you actually attempt.</p></div></div>
       <div class="card rank-hidden" id="lbHidden" style="display:none"><span class="ri">🏗️</span><div><h4>Leaderboard coming soon</h4><p>Rankings open up once enough aspirants are competing. Your daily-quiz streak still counts in the meantime.</p></div></div>
+      <div id="rankCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px"></div>
       <div id="lbBody">
       <div class="tabs" id="lbTabs"><button class="on" data-t="Daily">Daily</button><button data-t="Weekly">Weekly</button><button data-t="Monthly">Monthly</button><button data-t="All-time">All-time</button></div>
       <div class="card lb" id="lbList"></div>
@@ -372,6 +415,7 @@
 
         <div id="manualPane">
           <div class="field"><label>Question</label><textarea id="mQ" placeholder="Type the question…"></textarea></div>
+          <div class="field"><label>Subject</label><select id="mSubj"><option>Polity</option><option>History</option><option>Geography</option><option>Economy</option><option>Environment</option><option>Science &amp; Tech</option><option>Current Affairs</option><option>Other</option></select></div>
           <div class="field"><label>Options · tick the correct answer</label>
             <div class="opt-in"><span class="rk">A</span><input type="text" id="mA" placeholder="Option A"><label><input type="radio" name="mc" value="0" checked> correct</label></div>
             <div class="opt-in"><span class="rk">B</span><input type="text" id="mB" placeholder="Option B"><label><input type="radio" name="mc" value="1"> correct</label></div>
@@ -384,7 +428,7 @@
         </div>
 
         <div id="excelPane" style="display:none">
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px"><button class="btn ghost sm" onclick="downloadTemplate()">⬇ Download Excel template</button><span style="color:var(--faint);font-size:12px">Question · Option A–D · Correct (A/B/C/D) · Explanation · Concept video URL</span></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px"><button class="btn ghost sm" onclick="downloadTemplate()">⬇ Download Excel template</button><span style="color:var(--faint);font-size:12px">Question · Option A–D · Correct (A/B/C/D) · Explanation · Concept video URL · Subject</span></div>
           <div class="drop" id="drop" onclick="document.getElementById('xlfile').click()"><div class="di">⬆</div><div class="dt">Drop .xlsx / .csv or click to browse</div><div class="ds">Rows are added to the question list below</div><input type="file" id="xlfile" accept=".xlsx,.xls,.csv" hidden onchange="readFile(this.files[0])"></div>
         </div>
 
@@ -653,8 +697,8 @@ function publishTest(){
   flash('ctSaved');building=[];renderBuilt();
 }
 /* Excel */
-const HEADERS=["Question","Option A","Option B","Option C","Option D","Correct (A/B/C/D)","Explanation","Concept video URL"];
-function downloadTemplate(){const rows=[HEADERS,["Who is the ex-officio Chairperson of NITI Aayog?","The President","The Prime Minister","The Finance Minister","The RBI Governor","B","The Prime Minister of India chairs NITI Aayog.","https://www.youtube.com/watch?v=M7lc1UVf-VE"],["The 'Bharatmala' project relates to which sector?","Railways","Highways & roads","Ports","Airports","B","Bharatmala is a programme for national highways and economic corridors.","https://youtu.be/M7lc1UVf-VE"]];const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:42},{wch:16},{wch:16},{wch:16},{wch:16},{wch:14},{wch:46},{wch:40}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Questions");XLSX.writeFile(wb,"bookmyexam-question-template.xlsx");}
+const HEADERS=["Question","Option A","Option B","Option C","Option D","Correct (A/B/C/D)","Explanation","Concept video URL","Subject"];
+function downloadTemplate(){const rows=[HEADERS,["Who is the ex-officio Chairperson of NITI Aayog?","The President","The Prime Minister","The Finance Minister","The RBI Governor","B","The Prime Minister of India chairs NITI Aayog.","https://www.youtube.com/watch?v=M7lc1UVf-VE","Polity"],["The 'Bharatmala' project relates to which sector?","Railways","Highways & roads","Ports","Airports","B","Bharatmala is a programme for national highways and economic corridors.","https://youtu.be/M7lc1UVf-VE","Economy"]];const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:42},{wch:16},{wch:16},{wch:16},{wch:16},{wch:14},{wch:46},{wch:40},{wch:16}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Questions");XLSX.writeFile(wb,"bookmyexam-question-template.xlsx");}
 function ytId(u){if(!u)return'';const m=String(u).match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);return m?m[1]:(String(u).trim().length===11?String(u).trim():'');}
 function readFile(file){if(!file)return;const rd=new FileReader();rd.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,blankrows:false}).slice(1).filter(r=>r&&r[0]);let added=0;rows.forEach(r=>{const a={A:0,B:1,C:2,D:3}[String(r[5]||'A').trim().toUpperCase()]??0;const o=[r[1],r[2],r[3],r[4]].map(x=>String(x||'').trim());if(!String(r[0]).trim()||!o.every(Boolean))return;const item={q:String(r[0]).trim(),o,a,e:String(r[6]||'').trim()||'Explanation to be added.'};if(!isDaily()&&ytId(r[7]))item.vid=ytId(r[7]);building.push(item);added++;});renderBuilt();if(added)addMode('manual');else alert('No valid rows found. Use the template format.');}catch(err){alert('Could not read that file.');console.error(err);}};rd.readAsArrayBuffer(file);}
 (function(){const dz=document.getElementById('drop');if(!dz)return;['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over');}));dz.addEventListener('drop',e=>{if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0]);});})();
@@ -1599,6 +1643,452 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     }
     if (++_tries > 40) clearInterval(_kick);
   }, 500);
+})();
+
+</script>
+
+<script>
+/* __V4__ */
+/* ============================================================
+   Bookmyexam.in — subjects + ranks (v4)
+   ============================================================ */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  /* ---------------- capture subject on manual add ---------------- */
+  window.addManual = function () {
+    var q = mQ.value.trim(), A = mA.value.trim(), B = mB.value.trim(), C = mC.value.trim(), D = mD.value.trim(), e = mE.value.trim();
+    var a = +document.querySelector('input[name=mc]:checked').value;
+    if (!q || !A || !B || !C || !D) { alert('Fill the question and all four options.'); return; }
+    var item = { q: q, o: [A, B, C, D], a: a, e: e || 'Explanation to be added.', subj: (el('mSubj') ? el('mSubj').value : 'General') };
+    if (!isDaily() && mV.value.trim() && window.ytId) item.vid = window.ytId(mV.value);
+    building.push(item); renderBuilt();
+    mQ.value = mA.value = mB.value = mC.value = mD.value = mE.value = mV.value = '';
+  };
+
+  /* ---------------- excel import (with Subject col 8) + progress ---------------- */
+  function xlBar(pct, label) {
+    var pane = el('excelPane'); if (!pane) return;
+    var bar = el('xlProg');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'xlProg'; bar.style.cssText = 'margin:14px 0'; bar.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px" id="xlLbl"></div><div style="height:8px;background:var(--bg);border-radius:99px;overflow:hidden"><div id="xlFill" style="height:100%;width:0;background:var(--accent);transition:width .25s"></div></div>'; pane.insertBefore(bar, pane.firstChild); }
+    bar.style.display = 'block'; el('xlFill').style.width = pct + '%'; el('xlLbl').textContent = label || '';
+  }
+  function xlHide() { var b = el('xlProg'); if (b) b.style.display = 'none'; }
+  window.readFile = function (file) {
+    if (!file) return;
+    xlBar(5, 'Reading file\u2026');
+    var rd = new FileReader();
+    rd.onprogress = function (e) { if (e.lengthComputable) xlBar(Math.round(e.loaded / e.total * 45) + 5, 'Reading file\u2026'); };
+    rd.onload = function (e) {
+      xlBar(60, 'Parsing\u2026');
+      setTimeout(function () {
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false }).slice(1).filter(function (r) { return r && r[0]; });
+          var added = 0;
+          rows.forEach(function (r, idx) {
+            var a = ({ A: 0, B: 1, C: 2, D: 3 })[String(r[5] || 'A').trim().toUpperCase()]; if (a == null) a = 0;
+            var o = [r[1], r[2], r[3], r[4]].map(function (x) { return String(x || '').trim(); });
+            if (!String(r[0]).trim() || !o.every(Boolean)) return;
+            var item = { q: String(r[0]).trim(), o: o, a: a, e: String(r[6] || '').trim() || 'Explanation to be added.', subj: String(r[8] || '').trim() || 'General' };
+            if (!isDaily() && window.ytId && window.ytId(r[7])) item.vid = window.ytId(r[7]);
+            building.push(item); added++;
+            xlBar(60 + Math.round((idx + 1) / rows.length * 40), 'Importing ' + (idx + 1) + '/' + rows.length + '\u2026');
+          });
+          renderBuilt();
+          xlBar(100, added + ' question' + (added === 1 ? '' : 's') + ' added');
+          setTimeout(function () { xlHide(); if (added) addMode('manual'); else alert('No valid rows found. Use the template format.'); }, 700);
+        } catch (err) { xlHide(); alert('Could not read that file.'); console.error(err); }
+      }, 60);
+    };
+    rd.readAsArrayBuffer(file);
+  };
+
+  /* ---------------- publish test with subject ---------------- */
+  window.publishTest = async function () {
+    if (!building.length) { alert('Add at least one question.'); return; }
+    var map = { 'Daily Quiz': 'daily', 'Weekly Mega Test': 'weekly', 'Monthly Grand Test': 'monthly', 'Quarterly Test': 'quarterly' };
+    var tt = map[el('ctType').value] || 'daily';
+    var qs = building.map(function (x) { return { question: x.q, options: x.o, correct_index: x.a, explanation: x.e, video_url: x.vid || null, subject: x.subj || null }; });
+    try {
+      await api('/api/admin/tests', { method: 'POST', body: JSON.stringify({ title: el('ctType').value, test_type: tt, duration_minutes: (tt === 'daily' ? 3 : 45), go_live_at: el('ctDate').value, questions: qs }) });
+      building = []; renderBuilt(); if (window.flash) flash('ctSaved');
+      alert('Test published with ' + qs.length + ' question' + (qs.length === 1 ? '' : 's') + '.');
+    } catch (e) { alert('Failed to publish: ' + e.message); }
+  };
+
+  /* ---------------- dashboard with real subject chart ---------------- */
+  function destroyOn(id) { var c = el(id); if (c && window.Chart && Chart.getChart) { var ex = Chart.getChart(c); if (ex) ex.destroy(); } }
+  function freshCanvas(box, id) { destroyOn(id); box.innerHTML = '<canvas id="' + id + '"></canvas>'; return el(id); }
+  function emptyBox(box, msg) { box.innerHTML = '<div style="display:grid;place-items:center;height:100%;min-height:160px;color:var(--muted);font-size:13px">' + msg + '</div>'; }
+  function opts(pct) { return { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: Object.assign({ grid: { color: '#F0EFEC' }, border: { display: false } }, pct ? { min: 0, max: 100, ticks: { callback: function (v) { return v + '%'; } } } : {}), x: { grid: { display: false }, border: { display: false } } } }; }
+  function drawProgress(box, recent) {
+    if (!box) return;
+    if (!recent.length) { emptyBox(box, 'No data yet \u2014 attempt a test'); return; }
+    var c = freshCanvas(box, 'cProg');
+    new Chart(c, { type: 'line', data: { labels: recent.map(function (r, i) { return 'T' + (i + 1); }), datasets: [{ data: recent.map(function (r) { return r.score || 0; }), borderColor: '#4F46E5', backgroundColor: 'rgba(79,70,229,.08)', fill: true, tension: .4, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#4F46E5', pointBorderColor: '#fff', pointBorderWidth: 2 }] }, options: opts(false) });
+  }
+  function drawSubject(box, subjects) {
+    if (!box) return;
+    if (!subjects.length) { emptyBox(box, 'No subject data yet'); return; }
+    var c = freshCanvas(box, 'cSubj');
+    new Chart(c, { type: 'bar', data: { labels: subjects.map(function (s) { return s.subject; }), datasets: [{ data: subjects.map(function (s) { return s.accuracy; }), backgroundColor: subjects.map(function (s) { return s.accuracy >= 70 ? '#16A34A' : (s.accuracy >= 45 ? '#4F46E5' : '#DC2626'); }), borderRadius: 5, barThickness: 20 }] }, options: opts(true) });
+  }
+
+  window._renderDashboard = async function () {
+    if (!window.ME) return;
+    var hero = el('rankHero'); if (hero) hero.style.opacity = '.5';
+    var s = {}; try { s = await api('/api/me/stats'); } catch (e) { s = {}; }
+    if (hero) hero.style.opacity = '1';
+    if (hero) {
+      if (s.last_rank) {
+        hero.innerHTML = '<div><div class="dh-lbl">All India Rank</div><div class="dh-rank">#' + Number(s.last_rank).toLocaleString() + '</div><div class="dh-subs">' +
+          (s.state_rank ? '<div><b>#' + s.state_rank + '</b><span>' + esc(s.state || 'State') + '</span></div>' : '') +
+          (s.district_rank ? '<div><b>#' + s.district_rank + '</b><span>District</span></div>' : '') +
+          '</div><div class="dh-foot">From the tests you have attempted.</div></div>' +
+          '<div class="ring-lg" style="--p:' + Math.round(s.last_percentile || 0) + '"><i><b>' + (s.last_percentile != null ? s.last_percentile : '\u2014') + '</b><span>percentile</span></i></div>';
+      } else {
+        hero.innerHTML = '<div><div class="dh-lbl">All India Rank</div><div class="dh-rank" style="font-size:26px;line-height:1.2">No rank yet</div><div class="dh-foot">Attempt a ranked test \u2014 ranks appear after it\u2019s computed.</div></div><div class="ring-lg" style="--p:0"><i><b>\u2014</b><span>percentile</span></i></div>';
+      }
+    }
+    var m = document.querySelectorAll('.metrics .metric');
+    if (m[0]) { m[0].querySelector('.v').textContent = s.tests_attempted || 0; m[0].querySelector('.k').textContent = 'Tests attempted'; }
+    if (m[1]) { m[1].querySelector('.v').textContent = (s.accuracy != null ? s.accuracy + '%' : '0%'); m[1].querySelector('.k').textContent = 'Accuracy'; }
+    if (m[2]) { m[2].querySelector('.v').textContent = (s.daily_quiz_done ? 'Done' : '\u2014'); m[2].querySelector('.k').textContent = "Today's quiz"; }
+    document.querySelectorAll('.metrics .metric .d').forEach(function (d) { d.remove(); });
+    var boxes = document.querySelectorAll('#dashboard .chart-box');
+    drawProgress(boxes[0], s.recent || []);
+    drawSubject(boxes[1], s.subjects || []);
+    var cta = document.querySelector('#dashboard .cta') || document.querySelector('.cta');
+    if (cta) {
+      var big = cta.querySelector('.big'), p = cta.querySelector('p');
+      if (!s.daily_quiz_available) { if (big) big.textContent = 'No quiz today'; if (p) p.textContent = 'Check back when a daily quiz is published.'; }
+      else if (s.daily_quiz_done) { if (big) big.textContent = 'Daily quiz completed'; if (p) p.textContent = 'You have attempted today\u2019s quiz.'; }
+      else { if (big) big.textContent = 'Today\u2019s quiz is ready'; if (p) p.textContent = 'Attempt today\u2019s daily quiz.'; }
+    }
+  };
+
+  /* ---------------- ranks view (per cadence, named) ---------------- */
+  window.renderRanks = async function () {
+    var box = el('rankCards'); if (!box || !window.ME) return;
+    if (!window.ME.rank_visible) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading ranks\u2026</div>';
+    try {
+      var r = await api('/api/me/ranks');
+      if (!r.ranks || !r.ranks.length) { box.innerHTML = '<div class="card" style="grid-column:1/-1;padding:18px;color:var(--muted)">No ranks yet. Ranks appear once a test you attempted has been ranked.</div>'; return; }
+      var nice = { daily: 'Daily Quiz', weekly: 'Weekly Mega Test', monthly: 'Monthly Grand Test', quarterly: 'Quarterly Test', annual: 'Annual Test' };
+      box.innerHTML = r.ranks.map(function (x) {
+        return '<div class="card" style="padding:16px"><div style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--accent)">' + (nice[x.cadence] || x.cadence) + '</div>' +
+          '<div style="font-size:13px;font-weight:600;margin:3px 0 10px">' + esc(x.test_title) + '</div>' +
+          '<div style="display:flex;align-items:baseline;gap:8px"><div style="font-family:var(--mono);font-size:28px;font-weight:600">#' + Number(x.national_rank).toLocaleString() + '</div><div style="color:var(--muted);font-size:12px">of ' + (x.total || '\u2014') + '</div></div>' +
+          '<div style="color:var(--muted);font-size:12px;margin-top:4px">' + (x.percentile != null ? x.percentile + ' percentile' : '') + (x.state_rank ? ' \u00B7 #' + x.state_rank + ' state' : '') + '</div></div>';
+      }).join('');
+    } catch (e) { box.innerHTML = '<div class="card" style="grid-column:1/-1;padding:18px;color:var(--muted)">Could not load ranks.</div>'; }
+  };
+
+  /* ---------------- admin: compute ranks now ---------------- */
+  window.computeRanks = async function () {
+    var b = el('computeBtn'); if (b) { b.textContent = 'Computing\u2026'; b.disabled = true; }
+    try { var r = await api('/api/admin/compute-ranks', { method: 'POST' }); alert('Ranks computed for ' + r.computed + ' test(s). Open Ranks as a student to see them.'); }
+    catch (e) { alert('Failed: ' + e.message); }
+    if (b) { b.textContent = '\u27F3 Compute ranks now'; b.disabled = false; }
+  };
+  function ensureComputeBtn() {
+    var ov = el('adm-overview'); if (!ov || el('computeBtn')) return;
+    var b = document.createElement('button'); b.id = 'computeBtn'; b.className = 'btn ghost sm'; b.textContent = '\u27F3 Compute ranks now';
+    b.style.cssText = 'margin-bottom:14px'; b.onclick = window.computeRanks;
+    ov.insertBefore(b, ov.firstChild);
+  }
+
+  /* ---------------- triggers ---------------- */
+  var _go = window.go;
+  window.go = function (v) {
+    _go(v);
+    if (!window.ME) return;
+    if (v === 'leaderboard') window.renderRanks();
+    else if (v === 'adm-overview') ensureComputeBtn();
+  };
+  var _tries = 0;
+  var _kick = setInterval(function () {
+    if (window.ME && document.getElementById('app').classList.contains('show')) {
+      if (ROLE === 'admin') ensureComputeBtn();
+      clearInterval(_kick);
+    }
+    if (++_tries > 40) clearInterval(_kick);
+  }, 500);
+})();
+
+</script>
+
+<script>
+/* __V5__ */
+/* ============================================================
+   Bookmyexam.in — exam engine overhaul (v5)
+   ============================================================ */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function cap(s) { s = s || ''; return s.charAt(0).toUpperCase() + s.slice(1); }
+  function mmss(s) { var m = Math.floor(s / 60), ss = String(Math.max(s % 60, 0)).padStart(2, '0'); return m + ':' + ss; }
+  function loading(t) { return '<div class="card" style="text-align:center;padding:30px;color:var(--muted)">' + t + '</div>'; }
+  function errCard(t) { return '<div class="card" style="padding:22px">' + t + '</div>'; }
+  function fmtScore(s) { return s == null ? '-' : (Math.round(s * 100) / 100); }
+  var keys = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+  /* ---------------- excel import: fix date cells (raw:false) ---------------- */
+  function xlBar(pct, label) {
+    var pane = el('excelPane'); if (!pane) return;
+    var bar = el('xlProg');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'xlProg'; bar.style.cssText = 'margin:14px 0'; bar.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px" id="xlLbl"></div><div style="height:8px;background:var(--bg);border-radius:99px;overflow:hidden"><div id="xlFill" style="height:100%;width:0;background:var(--accent);transition:width .25s"></div></div>'; pane.insertBefore(bar, pane.firstChild); }
+    bar.style.display = 'block'; el('xlFill').style.width = pct + '%'; el('xlLbl').textContent = label || '';
+  }
+  function xlHide() { var b = el('xlProg'); if (b) b.style.display = 'none'; }
+  window.readFile = function (file) {
+    if (!file) return;
+    xlBar(5, 'Reading file\u2026');
+    var rd = new FileReader();
+    rd.onprogress = function (e) { if (e.lengthComputable) xlBar(Math.round(e.loaded / e.total * 45) + 5, 'Reading file\u2026'); };
+    rd.onload = function (e) {
+      xlBar(60, 'Parsing\u2026');
+      setTimeout(function () {
+        try {
+          // cellDates + raw:false => date cells become readable text, not serial numbers
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+          var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, blankrows: false }).slice(1).filter(function (r) { return r && r[0]; });
+          var added = 0;
+          rows.forEach(function (r, idx) {
+            var a = ({ A: 0, B: 1, C: 2, D: 3 })[String(r[5] || 'A').trim().toUpperCase()]; if (a == null) a = 0;
+            var o = [r[1], r[2], r[3], r[4]].map(function (x) { return String(x == null ? '' : x).trim(); });
+            if (!String(r[0]).trim() || !o.every(Boolean)) return;
+            var item = { q: String(r[0]).trim(), o: o, a: a, e: String(r[6] || '').trim() || 'Explanation to be added.', subj: String(r[8] || '').trim() || 'General' };
+            if (!isDaily() && window.ytId && window.ytId(r[7])) item.vid = window.ytId(r[7]);
+            building.push(item); added++;
+            xlBar(60 + Math.round((idx + 1) / rows.length * 40), 'Importing ' + (idx + 1) + '/' + rows.length + '\u2026');
+          });
+          renderBuilt();
+          xlBar(100, added + ' question' + (added === 1 ? '' : 's') + ' added');
+          setTimeout(function () { xlHide(); if (added) addMode('manual'); else alert('No valid rows found. Use the template format.'); }, 700);
+        } catch (err) { xlHide(); alert('Could not read that file.'); console.error(err); }
+      }, 60);
+    };
+    rd.readAsArrayBuffer(file);
+  };
+
+  /* ---------------- open a test: rules first (non-daily) ---------------- */
+  window.openTest = async function (id) {
+    var t = (window.TESTS || []).find(function (x) { return x.id === id; });
+    if (t && t.completed) return window.viewResult(id);
+    go('quiz'); var mount = el('quizMount'); mount.innerHTML = loading('Loading test\u2026');
+    try {
+      var q = await api('/api/tests/' + id + '/quiz');
+      window._pendingTest = q;
+      if (q.test.test_type === 'daily') startQuizFromData(q); else showRules(q);
+    } catch (e) {
+      if ((e.message || '').indexOf('403') > -1) mount.innerHTML = errCard('This test is locked. Unlock it from the Tests page.');
+      else mount.innerHTML = errCard('Could not load test: ' + esc(e.message));
+    }
+  };
+  function showRules(q) {
+    var mount = el('quizMount'); var n = q.questions.length; var totMin = q.test.duration_minutes || 45;
+    mount.innerHTML = '<div class="card" style="padding:26px"><h2 style="margin-bottom:4px">' + esc(q.test.title) + '</h2>' +
+      '<p style="color:var(--muted);margin-bottom:18px">Please read the rules. Your timer starts the moment you press Start.</p>' +
+      '<div class="rules">' +
+      '<div class="rrow"><span>Number of questions</span><b>' + n + '</b></div>' +
+      '<div class="rrow"><span>Total time</span><b>' + totMin + ' min</b></div>' +
+      '<div class="rrow"><span>Time per question</span><b>90 seconds</b></div>' +
+      '<div class="rrow"><span>Correct answer</span><b>+2 marks</b></div>' +
+      '<div class="rrow"><span>Wrong answer</span><b>\u22120.25 marks</b></div>' +
+      '<div class="rrow"><span>Unattempted</span><b>0 marks</b></div>' +
+      '<div class="rrow"><span>Tie-break</span><b>Faster finish ranks higher</b></div>' +
+      '<div class="rrow"><span>Retake</span><b>Not allowed \u2014 one attempt</b></div>' +
+      '</div>' +
+      '<button class="btn pri" style="width:100%;margin-top:20px" onclick="window._startPending()">I understand \u2014 Start test \u2192</button></div>';
+  }
+  window._startPending = function () { if (window._pendingTest) startQuizFromData(window._pendingTest); };
+  function startQuizFromData(q) {
+    var isDaily = q.test.test_type === 'daily';
+    window._runQuiz(q.test, q.questions, { perQuestionSec: isDaily ? 0 : 90, totalSec: (q.test.duration_minutes || (isDaily ? 3 : 45)) * 60, isDaily: isDaily });
+  }
+  window.startRealQuiz = function () { if (window._quiz) startQuizFromData(window._quiz); };  // daily
+
+  /* ---------------- quiz engine: dual timers ---------------- */
+  window._runQuiz = function (test, questions, cfg) {
+    var mount = el('quizMount'); if (!mount) return;
+    if (!questions || !questions.length) { mount.innerHTML = errCard('This test has no questions yet.'); return; }
+    var idx = 0, answers = {}, total = cfg.totalSec, perRemain = cfg.perQuestionSec || 0, tId = null, started = Date.now();
+    function render() {
+      var q = questions[idx];
+      mount.innerHTML =
+        '<div class="qtimers"><div class="qtimer" id="tTotal"><div class="tl">Total time left</div><div class="tv" id="tvTotal">--:--</div></div>' +
+        (cfg.perQuestionSec ? '<div class="qtimer" id="tPer"><div class="tl">This question</div><div class="tv" id="tvPer">--:--</div></div>' : '') + '</div>' +
+        '<div class="qhead"><div class="prog"><i id="qProg" style="width:' + ((idx + 1) / questions.length * 100) + '%"></i></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;margin-left:8px">Q ' + (idx + 1) + '/' + questions.length + '</span></div>' +
+        '<div class="card qcard"><div class="qt">' + esc(q.question) + '</div><div class="opts" id="qO"></div>' +
+        '<div class="qfoot"><button class="btn ghost" id="qPrev" onclick="window._qPrev()"' + (idx === 0 ? ' style="visibility:hidden"' : '') + '>\u2190 Prev</button><button class="btn pri" id="qNext" onclick="window._qNext()">' + (idx === questions.length - 1 ? 'Submit \u2192' : 'Next \u2192') + '</button></div></div>';
+      var O = el('qO');
+      q.options.forEach(function (o, i) {
+        var b = document.createElement('button'); b.className = 'opt' + (answers[q.id] === o.id ? ' sel' : '');
+        b.innerHTML = '<span class="key">' + keys[i] + '</span><span>' + esc(o.text) + '</span>';
+        b.onclick = function () { answers[q.id] = o.id; document.querySelectorAll('#qO .opt').forEach(function (x) { x.classList.remove('sel'); }); b.classList.add('sel'); };
+        O.appendChild(b);
+      });
+      upd();
+    }
+    function upd() {
+      var a = el('tvTotal'); if (a) { a.textContent = mmss(total); el('tTotal').classList.toggle('warn', total <= 30); }
+      var p = el('tvPer'); if (p) { p.textContent = mmss(perRemain); el('tPer').classList.toggle('warn', perRemain <= 10); }
+    }
+    window._qPrev = function () { if (idx > 0) { idx--; if (cfg.perQuestionSec) perRemain = cfg.perQuestionSec; render(); } };
+    window._qNext = function () { if (idx < questions.length - 1) { idx++; if (cfg.perQuestionSec) perRemain = cfg.perQuestionSec; render(); } else submit(); };
+    function tick() {
+      total--;
+      if (cfg.perQuestionSec) { perRemain--; if (perRemain <= 0) { if (idx < questions.length - 1) { idx++; perRemain = cfg.perQuestionSec; render(); return; } submit(); return; } }
+      if (total <= 0) { submit(); return; }
+      upd();
+    }
+    async function submit() {
+      clearInterval(tId);
+      var payload = { test_id: test.id, answers: questions.map(function (q) { return { question_id: q.id, selected_option_id: answers[q.id] || null }; }), time_taken_seconds: Math.round((Date.now() - started) / 1000) };
+      mount.innerHTML = loading('Submitting\u2026');
+      try { var res = await api('/api/attempts', { method: 'POST', body: JSON.stringify(payload) }); window._showResult(res, test); }
+      catch (e) { if ((e.message || '').indexOf('409') > -1) window.viewResult(test.id); else mount.innerHTML = errCard('Submit failed: ' + esc(e.message)); }
+    }
+    render(); tId = setInterval(tick, 1000);
+  };
+
+  /* ---------------- result summary (review is separate) ---------------- */
+  window._showResult = function (res, test) {
+    var mount = el('quizMount'); if (!mount) return;
+    var maxm = (res.max_marks != null) ? res.max_marks : (res.total || 0);
+    var pct = res.total ? Math.round(res.correct / res.total * 100) : 0;
+    window._reviewData = { solutions: res.solutions || [], test: test };
+    var isDaily = test && test.test_type === 'daily';
+    mount.innerHTML = '<div class="card result"><div class="ring" style="--p:' + pct + '"><i><b>' + fmtScore(res.score != null ? res.score : res.correct) + '</b><span>/ ' + maxm + '</span></i></div>' +
+      '<h2>' + (pct >= 80 ? 'Outstanding! \uD83C\uDFC6' : pct >= 50 ? 'Solid effort \uD83D\uDC4F' : 'Keep going \uD83D\uDCAA') + '</h2>' +
+      '<p class="rs">Submitted. ' + (isDaily ? '+1 correct \u00B7 no negative marking.' : '+2 correct \u00B7 \u22120.25 wrong \u00B7 0 unattempted.') + '</p>' +
+      '<div class="rstats"><div class="s ok"><div class="n">' + res.correct + '</div><small>Correct</small></div><div class="s no"><div class="n">' + res.incorrect + '</div><small>Wrong</small></div><div class="s"><div class="n">' + pct + '%</div><small>Accuracy</small></div><div class="s"><div class="n">' + fmtScore(res.score) + '</div><small>Marks</small></div></div>' +
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn ghost" onclick="' + (isDaily ? 'quizHome()' : 'go(\'tests\')') + '">' + (isDaily ? 'Done' : 'Back to tests') + '</button><button class="btn pri" onclick="window._openReview(0)">Review answers \u2192</button></div></div>';
+    if (window._renderDashboard) window._renderDashboard();
+    if (window._reloadTests) window._reloadTests();
+  };
+
+  /* ---------------- paginated review + video popup ---------------- */
+  window._openReview = function (i) {
+    var d = window._reviewData; if (!d || !d.solutions.length) return;
+    var mount = el('quizMount'); var n = d.solutions.length; i = Math.max(0, Math.min(i, n - 1));
+    var s = d.solutions[i]; var your = s.your_option_id;
+    var opts = s.options.map(function (o, idx) {
+      var isC = o.id === s.correct_option_id, isU = o.id === your, cls = isC ? 'c' : (isU ? 'x' : '');
+      return '<div class="sopt ' + cls + '"><span class="sk">' + keys[idx] + '</span>' + esc(o.text) + (isC ? '<span class="yt">correct</span>' : (isU ? '<span class="yt">your answer</span>' : '')) + '</div>';
+    }).join('');
+    var tile = s.video_url ? '<div class="vtile" onclick="window._playVideo(\'' + s.video_url + '\')"><span>\u25B6</span> Watch explanation video</div>' : '';
+    var back = (d.test && d.test.test_type === 'daily') ? 'quizHome()' : 'go(\'tests\')';
+    mount.innerHTML = '<div class="rvnav"><button class="btn ghost sm" onclick="' + back + '">Done</button><span style="font-size:13px;color:var(--muted)">Review ' + (i + 1) + ' / ' + n + '</span></div>' +
+      '<div class="card solq"><div class="sqh">' + (i + 1) + '. ' + esc(s.question) + '</div>' + opts + '<div class="exp"><b>Explanation</b>' + esc(s.explanation || '\u2014') + '</div>' + tile + '</div>' +
+      '<div class="rvnav"><button class="btn ghost" onclick="window._openReview(' + (i - 1) + ')"' + (i === 0 ? ' style="visibility:hidden"' : '') + '>\u2190 Prev</button><button class="btn pri" onclick="window._openReview(' + (i + 1) + ')"' + (i === n - 1 ? ' style="visibility:hidden"' : '') + '>Next \u2192</button></div>';
+  };
+  function ensureVModal() {
+    if (el('vmodal')) return;
+    var m = document.createElement('div'); m.id = 'vmodal'; m.className = 'vmodal';
+    m.innerHTML = '<span class="vclose" onclick="window._closeVideo()">\u2715</span><div class="vmbox"><div class="vframe" id="vmFrame"></div></div>';
+    m.addEventListener('click', function (e) { if (e.target === m) window._closeVideo(); });
+    document.body.appendChild(m);
+  }
+  window._playVideo = function (vid) { ensureVModal(); el('vmFrame').innerHTML = '<iframe src="https://www.youtube.com/embed/' + vid + '?rel=0&autoplay=1" allow="autoplay" allowfullscreen></iframe>'; el('vmodal').classList.add('show'); };
+  window._closeVideo = function () { var m = el('vmodal'); if (m) { m.classList.remove('show'); el('vmFrame').innerHTML = ''; } };
+
+  /* ---------------- completed test -> stored result + review ---------------- */
+  window.viewResult = async function (id) {
+    go('quiz'); var mount = el('quizMount'); mount.innerHTML = loading('Loading result\u2026');
+    try {
+      var res = await api('/api/tests/' + id + '/result');
+      var t = (window.TESTS || []).find(function (x) { return x.id === id; });
+      window._reviewData = { solutions: res.solutions || [], test: { test_type: (t && t.kind) || 'weekly' } };
+      var pct = res.total ? Math.round(res.correct / (res.total / 2) * 100) : Math.round(res.accuracy || 0);
+      pct = Math.round(res.accuracy != null ? res.accuracy : 0);
+      mount.innerHTML = '<div class="card result"><div class="ring" style="--p:' + pct + '"><i><b>' + fmtScore(res.score) + '</b><span>/ ' + (res.total || '') + '</span></i></div>' +
+        '<h2>Your result</h2><p class="rs">' + esc((t && t.title) || '') + '</p>' +
+        '<div class="rstats"><div class="s ok"><div class="n">' + res.correct + '</div><small>Correct</small></div><div class="s no"><div class="n">' + res.incorrect + '</div><small>Wrong</small></div><div class="s"><div class="n">' + pct + '%</div><small>Accuracy</small></div>' + ((t && t.rank) ? '<div class="s"><div class="n">#' + t.rank + '</div><small>Rank</small></div>' : '') + '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:center"><button class="btn ghost" onclick="go(\'tests\')">Back to tests</button><button class="btn pri" onclick="window._openReview(0)">Review answers \u2192</button></div></div>';
+    } catch (e) { mount.innerHTML = errCard('No result found for this test yet.'); }
+  };
+
+  /* ---------------- tests list with real stats, no retake ---------------- */
+  function mapT(t) {
+    return { id: t.id, title: t.title || cap(t.type), kind: t.type, month: t.month || 'Other', meta: t.meta || '',
+      owned: t.owned, locked: t.locked, completed: t.completed, price: Math.round((t.unlock_paise || 0) / 100),
+      score: t.score, max: t.max_marks, accuracy: t.accuracy, rank: t.rank };
+  }
+  window._reloadTests = async function () {
+    if (!window.ME) return;
+    try {
+      var t = await api('/api/tests');
+      window.TESTS = []; t.months.forEach(function (m) { m.tests.forEach(function (x) { window.TESTS.push(mapT(x)); }); });
+      window.renderTests(); if (window._updatePlanBanner) window._updatePlanBanner();
+    } catch (e) { console.warn('tests', e); }
+  };
+  function cardYours(t) {
+    if (t.completed) {
+      return '<div class="card tcard"><div class="tt">' + esc(t.title) + '</div><div class="tm">' + esc(t.meta) + '</div>' +
+        '<div class="tstats">Score <b>' + fmtScore(t.score) + '/' + (t.max || '') + '</b> \u00B7 Acc <b>' + (t.accuracy != null ? t.accuracy + '%' : '-') + '</b>' + (t.rank ? ' \u00B7 Rank <b>#' + t.rank + '</b>' : '') + '</div>' +
+        '<button class="btn ghost sm" onclick="viewResult(\'' + t.id + '\')">Review \u2192</button></div>';
+    }
+    return '<div class="card tcard"><div class="tt">' + esc(t.title) + '</div><div class="tm">' + esc(t.meta) + '</div><div class="tlive">\u25CF Live now</div><button class="btn pri sm" onclick="openTest(\'' + t.id + '\')">Take \u2192</button></div>';
+  }
+  function cardRow(t) {
+    var right;
+    if (t.completed) right = '<button class="btn ghost sm" onclick="viewResult(\'' + t.id + '\')">Review \u2192</button>';
+    else if (t.locked) right = '<button class="btn pri sm" onclick="unlock(\'' + t.id + '\')">\uD83D\uDD13 \u20B9' + t.price + '</button>';
+    else right = '<button class="btn pri sm" onclick="openTest(\'' + t.id + '\')">Take \u2192</button>';
+    var stat = t.completed ? '<span class="muted" style="font-size:12px">Score ' + fmtScore(t.score) + '/' + (t.max || '') + (t.rank ? ' \u00B7 #' + t.rank : '') + '</span>' : '';
+    var sub = t.meta + (t.locked ? ' \u00B7 \u20B9' + t.price + ' to unlock' : '');
+    return '<div class="trow"><div><div class="tt2">' + esc(t.title) + '</div><div class="muted" style="font-size:12px">' + esc(sub) + '</div>' + stat + '</div>' + right + '</div>';
+  }
+  window.renderTests = function () {
+    if (!window.TESTS) return;
+    var yb = el('yourTests'), ml = el('monthList');
+    var yours = window.TESTS.filter(function (t) { return t.owned; });
+    if (yb) yb.innerHTML = yours.length ? yours.map(cardYours).join('') : '<div class="card" style="padding:16px;color:var(--muted)">No active tests yet. Unlock one below, or subscribe to a plan.</div>';
+    var byMonth = {}, order = [];
+    window.TESTS.forEach(function (t) { if (!byMonth[t.month]) { byMonth[t.month] = []; order.push(t.month); } byMonth[t.month].push(t); });
+    if (ml) ml.innerHTML = order.length ? order.map(function (m, i) {
+      return '<div class="month-acc' + (i === 0 ? ' open' : '') + '"><div class="mah" onclick="this.parentNode.classList.toggle(\'open\')"><b>' + esc(m) + '</b><span class="muted">' + byMonth[m].length + ' test' + (byMonth[m].length === 1 ? '' : 's') + '</span></div><div class="mab">' + byMonth[m].map(cardRow).join('') + '</div></div>';
+    }).join('') : '<div class="card" style="padding:16px;color:var(--muted)">No tests published yet.</div>';
+  };
+
+  /* ---------------- admin: manage / delete tests ---------------- */
+  window.loadAdminTests = async function () {
+    var host = el('adminTestList');
+    if (!host) {
+      var pane = el('adm-create'); if (!pane) return;
+      var d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin-top:16px;padding:18px';
+      d.innerHTML = '<h3 style="margin-bottom:10px">Existing tests</h3><div id="adminTestList"></div>';
+      pane.appendChild(d); host = el('adminTestList');
+    }
+    host.innerHTML = '<div class="muted">Loading\u2026</div>';
+    try {
+      var r = await api('/api/admin/tests');
+      host.innerHTML = r.tests.length ? r.tests.map(function (t) {
+        return '<div class="ml"><span class="mt">' + esc(t.title) + '</span><span class="md">' + (t.test_type || '') + ' \u00B7 ' + (t.total_questions || 0) + ' Q</span><span class="bx" onclick="window.delTest(\'' + t.id + '\')">\u2715</span></div>';
+      }).join('') : '<p class="muted">No tests yet.</p>';
+    } catch (e) { host.innerHTML = '<p class="muted">Could not load tests.</p>'; }
+  };
+  window.delTest = async function (id) {
+    if (!confirm('Delete this test and all its questions? This cannot be undone.')) return;
+    try { await api('/api/admin/tests/' + id, { method: 'DELETE' }); window.loadAdminTests(); }
+    catch (e) { alert('Delete failed: ' + e.message); }
+  };
+
+  /* ---------------- triggers ---------------- */
+  var _go = window.go;
+  window.go = function (v) {
+    _go(v);
+    if (!window.ME) return;
+    if (v === 'tests') window._reloadTests();
+    else if (v === 'adm-create') window.loadAdminTests();
+  };
 })();
 
 </script>
