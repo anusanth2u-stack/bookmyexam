@@ -403,9 +403,25 @@ def leaderboard(scope: str = "daily", profile: dict = Depends(get_profile)):
 # ---------------------------------------------------------------- /current-affairs
 @router.get("/current-affairs")
 def current_affairs(profile: dict = Depends(get_profile)):
-    rows = (supabase.table("current_affairs").select("*").eq("is_published", True)
-            .order("published_at", desc=True).limit(40).execute().data)
-    return {"items": rows}
+    """Affairs feed, gated by plan window:
+       free -> today only; paid -> from purchase date up to today.
+       Admins see everything (for management)."""
+    if profile.get("role") == "admin":
+        rows = (supabase.table("current_affairs").select("*").eq("is_published", True)
+                .order("published_at", desc=True).limit(200).execute().data)
+        return {"items": rows, "plan": profile.get("plan", "free")}
+
+    plan = effective_plan(profile)
+    today = datetime.now(timezone.utc).date().isoformat()
+    q = supabase.table("current_affairs").select("*").eq("is_published", True)
+    if plan == "free":
+        q = q.eq("published_at", today)                 # free: only today's
+    else:
+        start, _end, _p = _plan_window(profile)
+        if start:
+            q = q.gte("published_at", start.date().isoformat())   # from purchase date
+    rows = q.order("published_at", desc=True).limit(120).execute().data
+    return {"items": rows, "plan": plan}
 
 
 @router.get("/me/stats")
