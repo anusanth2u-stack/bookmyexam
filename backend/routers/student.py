@@ -104,7 +104,6 @@ def submit_attempt(body: SubmitIn, profile: dict = Depends(get_profile)):
     and return the solution (explanations/videos) — which the UI shows only
     after submission."""
     uid = profile["id"]
-    # access check for premium tests
     test = supabase.table("tests").select("*").eq("id", body.test_id).limit(1).execute().data
     if not test:
         raise HTTPException(404, "Test not found")
@@ -115,7 +114,16 @@ def submit_attempt(body: SubmitIn, profile: dict = Depends(get_profile)):
         if not _test_owned(test, profile, unlocked):
             raise HTTPException(403, "This test is locked. Unlock or subscribe to attempt it.")
 
-    # build a correct-answer map
+    # NO RETAKE — if already attempted, block re-submission
+    existing = (supabase.table("results").select("id").eq("user_id", uid)
+                .eq("test_id", body.test_id).limit(1).execute().data)
+    if existing:
+        raise HTTPException(409, "You have already attempted this test.")
+
+    is_daily = test["test_type"] == "daily"
+    MARK_C = 1 if is_daily else 2          # +1 daily, +2 mega tests
+    MARK_W = 0 if is_daily else -0.25      # no negative on the daily quiz
+
     qids = [a.question_id for a in body.answers]
     opts = (supabase.table("question_options").select("id,question_id,is_correct")
             .in_("question_id", qids).execute().data)
@@ -126,34 +134,43 @@ def submit_attempt(body: SubmitIn, profile: dict = Depends(get_profile)):
          "submitted_at": datetime.now(timezone.utc).isoformat()},
         on_conflict="test_id,user_id").execute().data[0])
 
-    correct_count = 0
+    correct_count, incorrect, score = 0, 0, 0.0
     rows = []
     for a in body.answers:
-        is_c = a.selected_option_id is not None and a.selected_option_id == correct.get(a.question_id)
-        if is_c:
-            correct_count += 1
+        if a.selected_option_id is None:
+            marks = 0
+        elif a.selected_option_id == correct.get(a.question_id):
+            correct_count += 1; score += MARK_C; marks = MARK_C
+        else:
+            incorrect += 1; score += MARK_W; marks = MARK_W
         rows.append({"attempt_id": attempt["id"], "question_id": a.question_id,
                      "selected_option_id": a.selected_option_id,
-                     "is_correct": is_c, "marks_awarded": 1 if is_c else 0})
+                     "is_correct": (a.selected_option_id == correct.get(a.question_id)),
+                     "marks_awarded": marks})
     supabase.table("attempt_answers").upsert(rows, on_conflict="attempt_id,question_id").execute()
 
-    total = len(body.answers)
-    incorrect = sum(1 for a in body.answers if a.selected_option_id and not (
-        a.selected_option_id == correct.get(a.question_id)))
+    total_q = len(body.answers)
+    max_marks = total_q * MARK_C
     result = supabase.table("results").upsert({
         "attempt_id": attempt["id"], "user_id": uid, "test_id": body.test_id,
-        "score": correct_count, "total_marks": total,
+        "score": round(score, 2), "total_marks": max_marks,
         "correct_count": correct_count, "incorrect_count": incorrect,
-        "unattempted_count": total - correct_count - incorrect,
-        "accuracy": round(100 * correct_count / total, 1) if total else 0,
+        "unattempted_count": total_q - correct_count - incorrect,
+        "accuracy": round(100 * correct_count / total_q, 1) if total_q else 0,
         "time_taken_seconds": body.time_taken_seconds,
     }, on_conflict="attempt_id").execute().data[0]
 
-    return {"score": correct_count, "total": total,
+    # attach the user's chosen option to each solution
+    chosen = {a.question_id: a.selected_option_id for a in body.answers}
+    sols = _questions_for_test(body.test_id, reveal=True)
+    for q in sols:
+        q["your_option_id"] = chosen.get(q["id"])
+
+    return {"score": round(score, 2), "max_marks": max_marks,
+            "correct": correct_count, "incorrect": incorrect, "total": total_q,
             "accuracy": result["accuracy"],
-            # daily quiz solutions carry no video; premium tests do
-            "solutions": _questions_for_test(body.test_id, reveal=True),
-            "is_daily": test["test_type"] == "daily"}
+            "solutions": sols,
+            "is_daily": is_daily}
 
 
 # ---------------------------------------------------------------- /tests
@@ -213,20 +230,28 @@ def list_tests(profile: dict = Depends(get_profile)):
              .neq("test_type", "daily").order("go_live_at", desc=True).execute().data)
     unlocked = {r["test_id"] for r in
                 supabase.table("user_test_access").select("test_id").eq("user_id", uid).execute().data}
-    done_ids = {r["test_id"] for r in
-                supabase.table("results").select("test_id").eq("user_id", uid).execute().data}
+    my_results = {r["test_id"]: r for r in
+                  supabase.table("results").select("*").eq("user_id", uid).execute().data}
+    my_ranks = {r["test_id"]: r for r in
+                supabase.table("rankings").select("*").eq("user_id", uid).execute().data}
 
     months: "OrderedDict[str, list]" = OrderedDict()
     for t in tests:
         owned = _test_owned(t, profile, unlocked)
+        res = my_results.get(t["id"])
+        rnk = my_ranks.get(t["id"])
         item = {
             "id": t["id"], "title": t["title"], "type": t["test_type"],
             "meta": f'{t.get("total_questions") or "?"} Q · {t["duration_minutes"]} min',
             "month": t.get("month") or "Other",
-            "owned": owned, "completed": t["id"] in done_ids,
+            "owned": owned, "completed": bool(res),
             "locked": (not owned),
             "unlock_paise": UNLOCK_PAISE.get(t["test_type"], 0),
             "go_live_at": t.get("go_live_at"),
+            "score": (res.get("score") if res else None),
+            "max_marks": (res.get("total_marks") if res else None),
+            "accuracy": (res.get("accuracy") if res else None),
+            "rank": (rnk.get("national_rank") if rnk else None),
         }
         months.setdefault(item["month"], []).append(item)
 
@@ -379,7 +404,30 @@ def my_stats(profile: dict = Depends(get_profile)):
                "accuracy": r.get("accuracy"), "date": r.get("created_at")}
               for r in results[:8]][::-1]
 
+    # per-subject accuracy from the user's answered questions
+    subjects = []
+    atts = supabase.table("attempts").select("id").eq("user_id", uid).execute().data
+    if atts:
+        aids = [a["id"] for a in atts]
+        ans = (supabase.table("attempt_answers").select("question_id,is_correct")
+               .in_("attempt_id", aids).execute().data)
+        if ans:
+            qids = list({a["question_id"] for a in ans})
+            qs = supabase.table("questions").select("id,subject").in_("id", qids).execute().data
+            subj_of = {q["id"]: (q.get("subject") or "General") for q in qs}
+            agg = {}
+            for a in ans:
+                sub = subj_of.get(a["question_id"], "General")
+                d = agg.setdefault(sub, {"c": 0, "t": 0})
+                d["t"] += 1
+                if a.get("is_correct"):
+                    d["c"] += 1
+            subjects = [{"subject": k, "accuracy": round(v["c"] / v["t"] * 100, 1), "total": v["t"]}
+                        for k, v in agg.items()]
+            subjects.sort(key=lambda x: -x["total"])
+
     return {
+        "subjects": subjects,
         "tests_attempted": attempted,
         "accuracy": accuracy,
         "last_rank": lr.get("national_rank"),
@@ -430,3 +478,32 @@ def checkout(body: CheckoutIn, profile: dict = Depends(get_profile)):
          "invoice_number": "MOCK-" + now.strftime("%Y%m%d%H%M%S")}
     ).execute()
     return {"plan": plan, "plan_expires_at": expires.isoformat()}
+
+
+@router.get("/me/ranks")
+def my_ranks(profile: dict = Depends(get_profile)):
+    """The user's latest rank in each cadence, with the test name."""
+    uid = profile["id"]
+    rk = (supabase.table("rankings").select("*").eq("user_id", uid)
+          .order("computed_at", desc=True).execute().data)
+    if not rk:
+        return {"ranks": []}
+    tids = list({r["test_id"] for r in rk})
+    tests = supabase.table("tests").select("id,title,test_type").in_("id", tids).execute().data
+    tmap = {t["id"]: t for t in tests}
+    out, seen = [], set()
+    for r in rk:
+        t = tmap.get(r["test_id"])
+        if not t or t["test_type"] in seen:
+            continue
+        seen.add(t["test_type"])
+        cnt = supabase.table("rankings").select("id", count="exact").eq("test_id", r["test_id"]).execute()
+        out.append({
+            "cadence": t["test_type"], "test_id": r["test_id"], "test_title": t["title"],
+            "national_rank": r["national_rank"], "percentile": r["percentile"],
+            "state_rank": r["state_rank"], "district_rank": r["district_rank"],
+            "total": getattr(cnt, "count", None),
+        })
+    order = {"daily": 0, "weekly": 1, "monthly": 2, "quarterly": 3, "annual": 4}
+    out.sort(key=lambda x: order.get(x["cadence"], 9))
+    return {"ranks": out}
