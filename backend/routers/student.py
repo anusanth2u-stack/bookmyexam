@@ -221,6 +221,33 @@ def _test_owned(test: dict, profile: dict, unlocked_ids: set) -> bool:
     return start <= g <= end
 
 
+
+def _period(gl: str | None, cadence: str) -> str:
+    if not gl:
+        return ""
+    try:
+        d = datetime.fromisoformat(gl.replace("Z", "+00:00")).date()
+    except Exception:
+        return ""
+    if cadence == "daily":
+        return d.strftime("%d %b %Y")
+    if cadence == "weekly":
+        start = d - timedelta(days=d.weekday())
+        end = start + timedelta(days=6)
+        if start.month == end.month:
+            return f"{start.strftime('%b')} {start.day}–{end.day}, {end.year}"
+        return f"{start.strftime('%b %d')} – {end.strftime('%b %d')}, {end.year}"
+    if cadence == "monthly":
+        return d.strftime("%B %Y")
+    if cadence == "quarterly":
+        q = (d.month - 1) // 3
+        pair = [("Jan", "Mar"), ("Apr", "Jun"), ("Jul", "Sep"), ("Oct", "Dec")][q]
+        return f"{pair[0]}–{pair[1]} {d.year}"
+    if cadence == "annual":
+        return str(d.year)
+    return d.strftime("%b %Y")
+
+
 @router.get("/tests")
 def list_tests(profile: dict = Depends(get_profile)):
     """All published tests grouped by month, with owned/locked per user."""
@@ -248,6 +275,7 @@ def list_tests(profile: dict = Depends(get_profile)):
             "locked": (not owned),
             "unlock_paise": UNLOCK_PAISE.get(t["test_type"], 0),
             "go_live_at": t.get("go_live_at"),
+            "period": _period(t.get("go_live_at"), t["test_type"]),
             "score": (res.get("score") if res else None),
             "max_marks": (res.get("total_marks") if res else None),
             "accuracy": (res.get("accuracy") if res else None),
