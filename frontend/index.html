@@ -117,6 +117,17 @@
   .atest-a{display:flex;gap:6px;flex-shrink:0}
   .iconbtn{all:unset;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;font-size:15px;color:var(--muted)}
   .iconbtn:hover{background:var(--bg);color:var(--red)}
+  /* affairs vertical swipe book */
+  .affairs-book{max-width:620px;margin:0 auto;height:calc(100vh - 150px);overflow-y:auto;scroll-snap-type:y mandatory;padding:2px;scroll-behavior:smooth}
+  .affairs-book::-webkit-scrollbar{width:0}
+  .affair-page{scroll-snap-align:start;position:relative;margin-bottom:14px;border-radius:16px;overflow:hidden;background:var(--card);border:1px solid var(--line);min-height:220px;box-shadow:0 4px 18px rgba(0,0,0,.05)}
+  .affair-page img{width:100%;display:block}
+  .affair-date{position:absolute;top:12px;left:12px;background:rgba(15,15,25,.66);color:#fff;font-size:12px;font-weight:600;padding:5px 12px;border-radius:99px;z-index:2;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+  .affair-text .atx{padding:46px 20px 22px}
+  .affair-text h3{font-size:17px;margin:8px 0 8px;line-height:1.35}
+  .affair-text p{color:#444;font-size:14px;line-height:1.6;margin:0}
+  .affairs-hint{max-width:620px;margin:0 auto 10px;font-size:12.5px;color:var(--muted);text-align:center}
+  @media(max-width:920px){ .affairs-book{height:calc(100vh - 128px)} }
 </style>
 <style>
   :root{
@@ -2481,6 +2492,75 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
           '<div class="atest-a"><button class="iconbtn" title="Delete test" onclick="window.delTest(\'' + t.id + '\')">\uD83D\uDDD1</button></div></div>';
       }).join('');
     } catch (e) { host.innerHTML = '<p class="muted" style="padding:10px">Could not load tests.</p>'; }
+  };
+})();
+
+</script>
+
+<script>
+/* __V9__ */
+/* v9 — affairs as image vertical swipe book */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function fmtD(d) { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return d; } }
+
+  // student feed: vertical swipe book of images (date shown on each page)
+  window.renderCA = function () {
+    var grid = el('caGrid'); if (!grid) return;
+    if (!window.CA || !CA.length) {
+      grid.className = '';
+      grid.innerHTML = '<div class="card" style="padding:22px;color:var(--muted);text-align:center">No current affairs available for your plan window yet.<br><span style="font-size:12.5px">Free members see today\u2019s update; paid members see everything from their start date.</span></div>';
+      return;
+    }
+    grid.className = 'affairs-book';
+    grid.innerHTML = CA.map(function (c) {
+      var date = c[3] || '', img = c[4] || '';
+      if (img) {
+        return '<div class="affair-page"><div class="affair-date">\uD83D\uDDD3 ' + esc(date) + '</div><img loading="lazy" src="' + img + '" alt="' + esc(c[1] || 'current affairs') + '"></div>';
+      }
+      return '<div class="affair-page affair-text"><div class="affair-date">\uD83D\uDDD3 ' + esc(date) + '</div><div class="atx"><span class="cat ' + c[0] + '">' + esc(c[0]) + '</span><h3>' + esc(c[1]) + '</h3><p>' + esc(c[2] || '') + '</p></div></div>';
+    }).join('');
+  };
+
+  window._loadAffairs = async function () {
+    try {
+      var r = await api('/api/current-affairs');
+      window.CA = r.items.map(function (i) { return [i.category, i.title, i.body, fmtD(i.published_at), i.image_url || '']; });
+      window.renderCA();
+      if (ROLE === 'admin' && window.loadAffairsAdmin) window.loadAffairsAdmin();
+    } catch (e) { console.warn('affairs', e); }
+  };
+
+  // admin: image is the primary content now (headline/summary optional)
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    var f = el('caImg') && el('caImg').files[0];
+    var editingImg = window._editAffairId && (window.CA_ADMIN || []).find(function (x) { return x.id === window._editAffairId; });
+    var hasImg = f || (editingImg && editingImg.image);
+    if (!hasImg && !b && !t) { alert('Upload an image (or add a headline + summary).'); return; }
+    try {
+      var image = null;
+      if (f && window._sb) {
+        var pth = 'affairs/' + Date.now() + '_' + f.name.replace(/[^\w.\-]/g, '_');
+        var up = await window._sb.storage.from('banners').upload(pth, f, { upsert: true });
+        if (up.error) throw up.error;
+        image = window._sb.storage.from('banners').getPublicUrl(pth).data.publicUrl;
+      }
+      var payload = { category: cat, title: t || 'Current affairs', body: b, published_at: caDate.value };
+      if (image) payload.image_url = image;
+      if (window._editAffairId) {
+        await api('/api/admin/affairs/' + window._editAffairId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editAffairId = null;
+        var btn = document.querySelector('#adm-affairs .fa .btn.pri'); if (btn) btn.textContent = 'Publish';
+      } else {
+        await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      caTitle.value = caBody.value = ''; if (el('caImg')) el('caImg').value = '';
+      if (window.flash) flash('caSaved');
+      window.loadAffairsAdmin();
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
   };
 })();
 
