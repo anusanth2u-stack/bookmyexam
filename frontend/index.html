@@ -355,6 +355,7 @@
       <div class="cwrap">
         <div><div class="vframe2"><iframe id="player" src="https://www.youtube.com/embed/M7lc1UVf-VE?rel=0" allowfullscreen></iframe></div>
           <div class="ctabs"><button class="on" data-t="notes" onclick="cTab('notes')">Concept notes</button><button data-t="about" onclick="cTab('about')">About</button></div>
+          <a id="cDownload" class="btn ghost sm" style="display:none;margin:10px 0" target="_blank" rel="noopener">⬇ Download study notes</a>
           <div class="card notes" id="cNotes"></div></div>
         <div><div class="sec" style="margin:0 2px 12px"><h2>Concept library</h2></div><div class="clist" id="clist"></div></div>
       </div>
@@ -393,7 +394,7 @@
         <div class="card stat"><div class="k">Tests scheduled</div><div class="v" id="statT">2</div><div class="delta">this month</div></div>
       </div>
       <div class="sec"><h2>Content calendar</h2><a onclick="go('adm-create')">Create test →</a></div>
-      <div class="card cal">
+      <div class="card cal" id="contentCal">
         <div class="cal-row"><div class="when">Daily</div><div class="what"><b>Quiz + current affairs</b><span>Auto-published 06:00 IST</span></div><span class="st live">Live</span></div>
         <div class="cal-row"><div class="when">Sun 28 Jun</div><div class="what"><b>Weekly Mega Test · Week 26</b><span>Every Sunday</span></div><span class="st live">Live now</span></div>
         <div class="cal-row"><div class="when">Mon 30 Jun</div><div class="what"><b>Monthly Grand Test</b><span>Last day of the month</span></div><span class="st sched">Scheduled</span></div>
@@ -455,6 +456,7 @@
         <div class="field"><label>YouTube link or video ID</label><input type="text" id="acUrl" placeholder="https://www.youtube.com/watch?v=…" oninput="previewAC(this.value)"></div>
         <div class="acprev" id="acPrev"><iframe src="https://www.youtube.com/embed/M7lc1UVf-VE?rel=0" allowfullscreen></iframe></div>
         <div class="field" style="margin-top:15px"><label>Concept notes (viewer)</label><textarea id="acNotes" placeholder="Key points, definitions, must-remember facts…" style="min-height:90px"></textarea></div>
+        <div class="field"><label>Study notes file <span style="color:var(--faint);font-weight:400">· optional · PDF/doc · available to paid plans only</span></label><input type="file" id="acFile" accept=".pdf,.doc,.docx,.ppt,.pptx"></div>
         <div class="field"><label>Who can watch this video?</label>
           <div class="acc-checks">
             <label><input type="checkbox" id="ac_free" checked> Free</label>
@@ -500,6 +502,7 @@
         <div class="frow"><div class="field"><label>Category</label><select id="caCat"><option>National</option><option>International</option><option>Economy</option><option>Environment</option><option>Science</option><option>Government</option></select></div><div class="field"><label>Date</label><input type="date" id="caDate" value="2026-06-28"></div></div>
         <div class="field"><label>Headline</label><input type="text" id="caTitle" placeholder="e.g. RBI keeps repo rate unchanged at 6.25%"></div>
         <div class="field"><label>Summary</label><textarea id="caBody" placeholder="2–3 sentence summary for quick revision…"></textarea></div>
+        <div class="field"><label>Image <span style="color:var(--faint);font-weight:400">· optional · shown under Read more</span></label><input type="file" id="caImg" accept="image/*"></div>
         <div class="fa"><button class="btn pri" onclick="addAffair()">Publish</button><span class="saved" id="caSaved">✓ Published</span></div>
         <div class="mlist" id="caAdmList" style="margin-top:18px"></div>
       </div>
@@ -812,7 +815,7 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     try {
       var cfg = await fetch('/api/config').then(function (r) { return r.json(); });
       if (window.supabase && cfg.supabase_url && cfg.supabase_anon_key) {
-        SB = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
+        SB = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key); window._sb = SB;
         var s = (await SB.auth.getSession()).data.session;
         SB.auth.onAuthStateChange(function (_e, sess) { TOKEN = sess ? sess.access_token : null; });
         if (s) { TOKEN = s.access_token; await enterApp(); }
@@ -2089,6 +2092,175 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     if (v === 'tests') window._reloadTests();
     else if (v === 'adm-create') window.loadAdminTests();
   };
+})();
+
+</script>
+
+<script>
+/* __V6__ */
+/* ============================================================
+   Bookmyexam.in — notes/images + calendar + icons (v6)
+   ============================================================ */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function fmtD(d) { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return d; } }
+
+  async function uploadFile(file, folder) {
+    var sb = window._sb; if (!sb) throw new Error('Storage not ready — reload and try again.');
+    var path = folder + '/' + Date.now() + '_' + file.name.replace(/[^\w.\-]/g, '_');
+    var up = await sb.storage.from('banners').upload(path, file, { upsert: true, cacheControl: '3600' });
+    if (up.error) throw up.error;
+    return sb.storage.from('banners').getPublicUrl(path).data.publicUrl;
+  }
+
+  /* ---------------- concepts: material upload + paid download ---------------- */
+  window.addConcept = async function () {
+    var title = acTitle.value.trim(), subj = acSubj.value, url = acUrl.value.trim(), notes = acNotes.value.trim();
+    if (!title || !url) { alert('Add a title and a YouTube link.'); return; }
+    var access = ['free', 'weekly', 'monthly', 'quarterly', 'yearly'].filter(function (k) { return el('ac_' + k).checked; });
+    if (!access.length) { alert('Pick at least one plan that can watch it.'); return; }
+    var file = el('acFile') && el('acFile').files[0];
+    try {
+      var material = null;
+      if (file) material = await uploadFile(file, 'notes');
+      var row = await api('/api/admin/concepts', { method: 'POST', body: JSON.stringify({ title: title, subject: subj, video_url: url, notes: notes, access: access, material_url: material }) });
+      if (window.CONCEPTS) CONCEPTS.unshift({ id: row.id, title: row.title, subj: row.subject, vid: row.video_url, notes: row.notes, material: row.material_url, access: row.access });
+      if (window.renderAdmConcepts) renderAdmConcepts();
+      acTitle.value = acUrl.value = acNotes.value = ''; if (el('acFile')) el('acFile').value = '';
+      if (window.flash) flash('acSaved');
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  };
+  window._loadConcepts = async function () {
+    try {
+      var c = await api('/api/concepts');
+      window.CONCEPTS = c.concepts.map(function (x) { return { id: x.id, title: x.title, subj: x.subject, vid: x.video_url || '', notes: x.notes || '', material: x.material_url || '', access: x.access, viewable: x.viewable }; });
+      if (!CONCEPTS.find(function (z) { return z.id === activeC; })) { var f = CONCEPTS.find(function (z) { return z.viewable; }); if (f) activeC = f.id; }
+      if (window.renderConcepts) renderConcepts();
+    } catch (e) { console.warn('concepts', e); }
+  };
+  window.loadConcept = function (id, silent) {
+    var c = (window.CONCEPTS || []).find(function (x) { return x.id === id; }); if (!c) return;
+    if (!window.canViewConcept(c)) { if (!silent) alert('This video is on a higher plan. Upgrade to watch it.'); return; }
+    activeC = id;
+    var p = el('player'); if (p) p.src = 'https://www.youtube.com/embed/' + c.vid + '?rel=0';
+    var n = el('cNotes'); if (n) n.innerHTML = c.notes || '<p style="color:var(--muted)">No notes for this video.</p>';
+    var dl = el('cDownload');
+    if (dl) {
+      var paid = window.ME && window.ME.plan && window.ME.plan !== 'free';
+      if (c.material && paid) { dl.style.display = 'inline-flex'; dl.href = c.material; }
+      else { dl.style.display = 'none'; }
+    }
+    var items = document.querySelectorAll('#clist .citem');
+    (window.CONCEPTS || []).forEach(function (cc, i) { if (items[i]) items[i].classList.toggle('on', cc.id === id); });
+  };
+
+  /* ---------------- affairs: image upload + show on read more ---------------- */
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    if (!t || !b) { alert('Add a headline and summary.'); return; }
+    var f = el('caImg') && el('caImg').files[0];
+    try {
+      var image = null;
+      if (f) image = await uploadFile(f, 'affairs');
+      await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify({ category: cat, title: t, body: b, published_at: caDate.value, image_url: image }) });
+      caTitle.value = caBody.value = ''; if (el('caImg')) el('caImg').value = '';
+      if (window.flash) flash('caSaved');
+      if (window.loadAffairsAdmin) window.loadAffairsAdmin();
+    } catch (e) { alert('Failed to publish: ' + (e.message || e)); }
+  };
+  window._loadAffairs = async function () {
+    try {
+      var r = await api('/api/current-affairs');
+      window.CA = r.items.map(function (i) { return [i.category, i.title, i.body, fmtD(i.published_at), i.image_url || '']; });
+      window.renderCA();
+      if (ROLE === 'admin' && window.loadAffairsAdmin) window.loadAffairsAdmin();
+    } catch (e) { console.warn('affairs', e); }
+  };
+  window.renderCA = function () {
+    var grid = el('caGrid'); if (!grid) return;
+    if (!window.CA || !CA.length) { grid.className = ''; grid.innerHTML = '<div class="card" style="padding:20px;color:var(--muted)">No current affairs published yet.</div>'; return; }
+    var groups = {}, order = [];
+    CA.forEach(function (c) { var parts = String(c[3] || '').split(' '); var mon = ((parts[1] || '') + ' ' + (parts[2] || '')).trim() || 'Recent'; if (!groups[mon]) { groups[mon] = []; order.push(mon); } groups[mon].push(c); });
+    grid.className = '';
+    grid.innerHTML = order.map(function (mon) {
+      return '<div class="ca-month"><h3 class="ca-mh">' + esc(mon) + '</h3>' + groups[mon].map(function (c) {
+        var body = c[2] || '', img = c[4] || '', needMore = body.length > 150 || img, short = body.length > 150 ? body.slice(0, 150) + '\u2026' : body;
+        return '<div class="card ca2"><div class="ca2-top"><span class="cat ' + c[0] + '">' + esc(c[0]) + '</span><span class="ca2-date">' + esc(c[3]) + '</span></div><h4>' + esc(c[1]) + '</h4><p class="ca2-body" data-full="' + encodeURIComponent(body) + '" data-img="' + encodeURIComponent(img) + '">' + esc(short) + '</p>' + (needMore ? '<a class="ca2-more" onclick="window._caMore(this)">Read more</a>' : '') + '<div class="ca2-imgwrap"></div></div>';
+      }).join('') + '</div>';
+    }).join('');
+  };
+  window._caMore = function (a) {
+    var p = a.parentNode.querySelector('.ca2-body'); var wrap = a.parentNode.querySelector('.ca2-imgwrap');
+    var full = decodeURIComponent(p.getAttribute('data-full')); var img = decodeURIComponent(p.getAttribute('data-img') || '');
+    if (a.textContent === 'Read more') { p.textContent = full; a.textContent = 'Show less'; if (img && wrap) wrap.innerHTML = '<img src="' + img + '" style="width:100%;border-radius:10px;margin-top:10px">'; }
+    else { p.textContent = full.slice(0, 150) + '\u2026'; a.textContent = 'Read more'; if (wrap) wrap.innerHTML = ''; }
+  };
+
+  /* ---------------- admin content calendar: real data ---------------- */
+  window.loadContentCal = async function () {
+    var cal = el('contentCal'); if (!cal) return;
+    try {
+      var r = await api('/api/admin/tests');
+      if (!r.tests.length) { cal.innerHTML = '<div class="cal-row"><div class="what"><b>No tests yet</b><span>Create your first test</span></div></div>'; return; }
+      cal.innerHTML = r.tests.slice(0, 12).map(function (t) {
+        var when = t.go_live_at ? new Date(t.go_live_at).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }) : '\u2014';
+        var st = t.test_type === 'daily' ? '<span class="st live">Daily</span>' : '<span class="st live">Published</span>';
+        return '<div class="cal-row"><div class="when">' + when + '</div><div class="what"><b>' + esc(t.title) + '</b><span>' + esc(t.test_type || '') + ' \u00B7 ' + (t.total_questions || 0) + ' Q</span></div>' + st + '</div>';
+      }).join('');
+    } catch (e) { console.warn('cal', e); }
+  };
+
+  /* ---------------- cleaner SVG icons ---------------- */
+  function svg(p) { return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">' + p + '</svg>'; }
+  var ICONS = {
+    dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><path d="M12 17h.01"/>',
+    tests: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m9 14 2 2 4-4"/>',
+    concepts: '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>',
+    affairs: '<path d="M4 5h13v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M17 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2"/><path d="M7 8h7M7 12h7M7 16h4"/>',
+    leaderboard: '<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M17 5h3v1a3 3 0 0 1-3 3M7 5H4v1a3 3 0 0 0 3 3"/>',
+    plans: '<path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8L3.5 9.3l5.9-.9z"/>',
+    'adm-overview': '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
+    'adm-create': '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/>',
+    'adm-concepts': '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>',
+    'adm-banners': '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
+    'adm-affairs': '<path d="M4 5h13v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M17 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2"/><path d="M7 8h7M7 12h7M7 16h4"/>',
+    'adm-settings': '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>'
+  };
+  window.decorateIcons = function () {
+    document.querySelectorAll('#nav button, #mnav button').forEach(function (b) {
+      var v = b.dataset.v; var ic = b.querySelector('.ic'); if (v && ic && ICONS[v] && !ic.querySelector('svg')) ic.innerHTML = svg(ICONS[v]);
+    });
+    document.querySelectorAll('#mdrawer .mlink').forEach(function (b) {
+      var oc = b.getAttribute('onclick') || ''; var m = oc.match(/_navTo\('([^']+)'\)/); if (!m) return;
+      var span = b.querySelector('span'); if (span && ICONS[m[1]] && !span.querySelector('svg')) span.innerHTML = svg(ICONS[m[1]]);
+    });
+  };
+
+  /* ---------------- triggers ---------------- */
+  var _go = window.go;
+  window.go = function (v) {
+    _go(v);
+    window.decorateIcons();
+    if (!window.ME) return;
+    if (v === 'concepts') window._loadConcepts();
+    else if (v === 'affairs') window._loadAffairs();
+    else if (v === 'adm-overview') window.loadContentCal();
+  };
+  var _od = window.openDrawer;
+  if (_od) window.openDrawer = function () { _od(); setTimeout(window.decorateIcons, 0); };
+
+  var _tries = 0;
+  var _kick = setInterval(function () {
+    if (window.ME && document.getElementById('app').classList.contains('show')) {
+      window.decorateIcons();
+      if (ROLE === 'admin') window.loadContentCal();
+      clearInterval(_kick);
+    }
+    if (++_tries > 40) clearInterval(_kick);
+  }, 500);
 })();
 
 </script>
