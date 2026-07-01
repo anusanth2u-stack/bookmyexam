@@ -106,6 +106,17 @@
   .tperiod{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:99px;margin-bottom:6px}
   .ml .ed{cursor:pointer;color:var(--muted);font-size:13px;margin-right:4px}
   .ml .ed:hover{color:var(--accent)}
+  /* admin existing-tests list */
+  .atest{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--card);transition:border-color .15s}
+  .atest:hover{border-color:var(--accent)}
+  .atest-l{display:flex;align-items:center;gap:12px;min-width:0}
+  .cadpill{font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:4px 9px;border-radius:99px;white-space:nowrap}
+  .atest-info{min-width:0}
+  .atest-t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .atest-m{color:var(--muted);font-size:12px;margin-top:1px}
+  .atest-a{display:flex;gap:6px;flex-shrink:0}
+  .iconbtn{all:unset;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;font-size:15px;color:var(--muted)}
+  .iconbtn:hover{background:var(--bg);color:var(--red)}
 </style>
 <style>
   :root{
@@ -2437,6 +2448,39 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     if (!window.ME) return;
     if (v === 'adm-affairs') window.loadAffairsAdmin();
     else if (v === 'adm-concepts' && window._loadConcepts) window._loadConcepts();
+  };
+})();
+
+</script>
+
+<script>
+/* __V8__ */
+/* v8 — polished admin Existing-tests list */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  var BADGE = { daily: '#4F46E5', weekly: '#0EA5E9', monthly: '#16A34A', quarterly: '#D97706', annual: '#DC2626' };
+  window.loadAdminTests = async function () {
+    var host = el('adminTestList');
+    if (!host) {
+      var pane = el('adm-create'); if (!pane) return;
+      var d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin-top:16px;padding:18px';
+      d.innerHTML = '<h3 style="margin-bottom:3px">Existing tests</h3><p style="color:var(--muted);font-size:12.5px;margin-bottom:14px">Edit or remove any published test.</p><div id="adminTestList"></div>';
+      pane.appendChild(d); host = el('adminTestList');
+    }
+    host.innerHTML = '<div class="muted" style="padding:10px">Loading\u2026</div>';
+    try {
+      var r = await api('/api/admin/tests');
+      if (!r.tests.length) { host.innerHTML = '<p class="muted" style="padding:10px">No tests yet.</p>'; return; }
+      host.innerHTML = r.tests.map(function (t) {
+        var when = t.go_live_at ? new Date(t.go_live_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '\u2014';
+        var col = BADGE[t.test_type] || '#71717A';
+        return '<div class="atest"><div class="atest-l"><span class="cadpill" style="background:' + col + '1a;color:' + col + '">' + esc(t.test_type || '') + '</span>' +
+          '<div class="atest-info"><div class="atest-t">' + esc(t.title) + '</div><div class="atest-m">' + (t.total_questions || 0) + ' questions \u00B7 ' + when + '</div></div></div>' +
+          '<div class="atest-a"><button class="iconbtn" title="Delete test" onclick="window.delTest(\'' + t.id + '\')">\uD83D\uDDD1</button></div></div>';
+      }).join('');
+    } catch (e) { host.innerHTML = '<p class="muted" style="padding:10px">Could not load tests.</p>'; }
   };
 })();
 
