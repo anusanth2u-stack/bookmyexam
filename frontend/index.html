@@ -145,6 +145,16 @@
   .tc-btn:hover{transform:scale(1.08)}
   .tc-count{font-size:13px;color:var(--muted);font-weight:600;min-width:56px;text-align:center}
   .tinder-hint{text-align:center;font-size:12px;color:var(--muted);margin-top:10px}
+  /* beautiful file upload zones (replaces native Choose File) */
+  .fdrop{display:flex;align-items:center;gap:13px;border:1.5px dashed var(--line);border-radius:13px;padding:14px 16px;cursor:pointer;background:var(--card);transition:border-color .15s,background .15s}
+  .fdrop:hover,.fdrop.drag{border-color:var(--accent);background:var(--accent-soft)}
+  .fdrop .fic{width:40px;height:40px;border-radius:11px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex-shrink:0}
+  .fdrop.has .fic{background:rgba(22,163,74,.13);color:#16a34a}
+  .fdrop .ftxt{min-width:0;line-height:1.35}
+  .fdrop .fname{display:block;font-size:13.5px;color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+  .fdrop .fsub{font-size:12px;color:var(--muted)}
+  .fdrop .fclear{margin-left:auto;font-size:15px;color:var(--muted);padding:4px 8px;border-radius:8px;flex-shrink:0}
+  .fdrop .fclear:hover{background:var(--bg);color:var(--red)}
 </style>
 <style>
   :root{
@@ -545,12 +555,13 @@
     <!-- ADMIN: CURRENT AFFAIRS -->
     <section class="view" id="adm-affairs">
       <div class="card form-card">
-        <h3>Publish current affairs</h3><div class="fh">Appears instantly in the student feed.</div>
-        <div class="frow"><div class="field"><label>Category</label><select id="caCat"><option>National</option><option>International</option><option>Economy</option><option>Environment</option><option>Science</option><option>Government</option></select></div><div class="field"><label>Date</label><input type="date" id="caDate" value="2026-06-28"></div></div>
-        <div class="field"><label>Headline</label><input type="text" id="caTitle" placeholder="e.g. RBI keeps repo rate unchanged at 6.25%"></div>
-        <div class="field"><label>Summary</label><textarea id="caBody" placeholder="2–3 sentence summary for quick revision…"></textarea></div>
-        <div class="field"><label>Image <span style="color:var(--faint);font-weight:400">· optional · shown under Read more</span></label><input type="file" id="caImg" accept="image/*"></div>
-        <div class="fa"><button class="btn pri" onclick="addAffair()">Publish</button><span class="saved" id="caSaved">✓ Published</span></div>
+        <h3>Publish current affairs</h3><div class="fh">Upload today's current-affairs card. Students swipe through these images.</div>
+        <div class="field"><label>Card image <span style="color:var(--red)">*</span></label><input type="file" id="caImg" accept="image/*" onchange="window._caPreview&&window._caPreview(this)"><div id="caImgPrev" style="margin-top:10px;display:none"><img alt="preview" style="max-width:100%;border-radius:12px;border:1px solid var(--line);display:block"></div></div>
+        <div class="frow"><div class="field"><label>Date <span style="color:var(--red)">*</span></label><input type="date" id="caDate" value="2026-06-28"></div><div class="field"><label>Category</label><select id="caCat"><option>National</option><option>International</option><option>Economy</option><option>Environment</option><option>Science</option><option>Government</option></select></div></div>
+        <details style="margin-top:2px"><summary style="cursor:pointer;color:var(--muted);font-size:13px;padding:4px 0">+ Optional caption (used only if no image is attached)</summary>
+        <div class="field" style="margin-top:10px"><label>Headline <span style="color:var(--faint);font-weight:400">· optional</span></label><input type="text" id="caTitle" placeholder="e.g. RBI keeps repo rate unchanged at 6.25%"></div>
+        <div class="field"><label>Summary <span style="color:var(--faint);font-weight:400">· optional</span></label><textarea id="caBody" placeholder="Text fallback for accessibility / no-image cards…"></textarea></div></details>
+        <div class="fa"><button class="btn pri" onclick="addAffair()">Publish card</button><span class="saved" id="caSaved">✓ Published</span></div>
         <div class="mlist" id="caAdmList" style="margin-top:18px"></div>
       </div>
     </section>
@@ -2672,6 +2683,128 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     if (e.key === 'ArrowLeft') window._caNav(-1);
     else if (e.key === 'ArrowRight') window._caNav(1);
   });
+})();
+
+</script>
+
+<script>
+/* __V11__ */
+/* v11 — affairs form: image preview + image-required publish */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+
+  window._caPreview = function (input) {
+    var wrap = el('caImgPrev'); if (!wrap) return;
+    var f = input && input.files && input.files[0];
+    if (!f) { wrap.style.display = 'none'; return; }
+    var url = URL.createObjectURL(f);
+    wrap.querySelector('img').src = url; wrap.style.display = 'block';
+  };
+
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    var f = el('caImg') && el('caImg').files[0];
+    var editing = window._editAffairId && (window.CA_ADMIN || []).find(function (x) { return x.id === window._editAffairId; });
+    var hasImg = f || (editing && editing.image);
+    if (!hasImg) { alert('Please choose a card image to publish.'); return; }
+    try {
+      var image = null;
+      if (f && window._sb) {
+        var pth = 'affairs/' + Date.now() + '_' + f.name.replace(/[^\w.\-]/g, '_');
+        var up = await window._sb.storage.from('banners').upload(pth, f, { upsert: true });
+        if (up.error) throw up.error;
+        image = window._sb.storage.from('banners').getPublicUrl(pth).data.publicUrl;
+      }
+      var payload = { category: cat, title: t || 'Current affairs', body: b, published_at: caDate.value };
+      if (image) payload.image_url = image;
+      if (window._editAffairId) {
+        await api('/api/admin/affairs/' + window._editAffairId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editAffairId = null;
+        var btn = document.querySelector('#adm-affairs .fa .btn.pri'); if (btn) btn.textContent = 'Publish card';
+      } else {
+        await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      caTitle.value = caBody.value = '';
+      if (el('caImg')) el('caImg').value = '';
+      if (el('caImgPrev')) el('caImgPrev').style.display = 'none';
+      if (window.flash) flash('caSaved');
+      if (window.loadAffairsAdmin) window.loadAffairsAdmin();
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  };
+
+  // when editing, show the existing image in the preview
+  var _ea = window.editAffair;
+  if (_ea) window.editAffair = function (id) {
+    _ea(id);
+    var c = (window.CA_ADMIN || []).find(function (x) { return x.id === id; });
+    var wrap = el('caImgPrev');
+    if (c && c.image && wrap) { wrap.querySelector('img').src = c.image; wrap.style.display = 'block'; }
+    else if (wrap) { wrap.style.display = 'none'; }
+  };
+})();
+
+</script>
+
+<script>
+/* __V12__ */
+/* v12 — replace every native file input with a styled drag & drop zone */
+(function () {
+  var UP = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>';
+  function fsize(b) { return b / 1024 < 1024 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+
+  function labelFor(accept) {
+    if (/image/.test(accept)) return 'Click to upload an image';
+    if (/sheet|excel|xls|csv|spreadsheet/.test(accept)) return 'Upload Excel / CSV file';
+    if (/pdf|doc|ppt/.test(accept)) return 'Click to upload a file';
+    return 'Click to upload';
+  }
+
+  function enhance() {
+    var inputs = document.querySelectorAll('input[type=file]:not([data-enh])');
+    for (var n = 0; n < inputs.length; n++) (function (inp) {
+      inp.setAttribute('data-enh', '1');
+      inp.style.display = 'none';
+      var label = labelFor(inp.getAttribute('accept') || '');
+      var drop = document.createElement('div');
+      drop.className = 'fdrop';
+      drop.innerHTML = '<span class="fic">' + UP + '</span><span class="ftxt"><b class="fname">' + label + '</b><span class="fsub">or drag &amp; drop here</span></span>';
+      inp.parentNode.insertBefore(drop, inp);
+
+      function refresh() {
+        var f = inp.files && inp.files[0];
+        var name = drop.querySelector('.fname'), sub = drop.querySelector('.fsub'), clr = drop.querySelector('.fclear');
+        if (f) {
+          drop.classList.add('has'); name.textContent = f.name; sub.textContent = fsize(f.size);
+          if (!clr) {
+            clr = document.createElement('span'); clr.className = 'fclear'; clr.textContent = '\u2715';
+            clr.onclick = function (e) { e.stopPropagation(); inp.value = ''; refresh(); inp.dispatchEvent(new Event('change', { bubbles: true })); };
+            drop.appendChild(clr);
+          }
+        } else {
+          drop.classList.remove('has'); name.textContent = label; sub.textContent = 'or drag & drop here';
+          if (clr) clr.remove();
+        }
+      }
+      drop.addEventListener('click', function () { inp.click(); });
+      inp.addEventListener('change', refresh);
+      ['dragover', 'dragenter'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('drag'); }); });
+      ['dragleave', 'dragend'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('drag'); }); });
+      drop.addEventListener('drop', function (e) {
+        e.preventDefault(); drop.classList.remove('drag');
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) { try { inp.files = files; } catch (x) {} refresh(); inp.dispatchEvent(new Event('change', { bubbles: true })); }
+      });
+      refresh();
+    })(inputs[n]);
+  }
+
+  window._enhanceFiles = enhance;
+  var _go = window.go;
+  window.go = function (v) { _go(v); setTimeout(enhance, 0); };
+  var t = 0, iv = setInterval(function () { enhance(); if (++t > 30) clearInterval(iv); }, 400);
+  if (document.readyState !== 'loading') enhance();
+  else document.addEventListener('DOMContentLoaded', enhance);
 })();
 
 </script>
