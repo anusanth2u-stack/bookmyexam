@@ -192,7 +192,9 @@ def _plan_window(profile: dict):
     if plan == "free" or not exp:
         return None, None, "free"
     try:
-        end = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(str(exp).replace("Z", "+00:00"))
+        if end.tzinfo is None:                      # date-only / naive timestamps -> assume UTC
+            end = end.replace(tzinfo=timezone.utc)
     except Exception:
         return None, None, "free"
     if end < datetime.now(timezone.utc):
@@ -370,15 +372,18 @@ def list_concepts(profile: dict = Depends(get_profile)):
 # ---------------------------------------------------------------- /banners
 @router.get("/banners")
 def list_banners(profile: dict = Depends(get_profile)):
-    plan = effective_plan(profile)
-    s = _settings()
-    key = "guest" if plan == "free" else plan
-    if not s.get("banner_visibility", {}).get(key, True):
-        return {"banners": []}            # banners turned off for this tier
-    rows = (supabase.table("banners").select("*").eq("is_active", True)
-            .order("sort_order").execute().data)
-    return {"banners": [{"id": b["id"], "image_url": b["image_url"],
-                         "link_url": b.get("link_url"), "title": b.get("title")} for b in rows]}
+    try:
+        plan = effective_plan(profile)
+        s_ = _settings()
+        key = "guest" if plan == "free" else plan
+        if not s_.get("banner_visibility", {}).get(key, True):
+            return {"banners": []}
+        rows = (supabase.table("banners").select("*").eq("is_active", True)
+                .order("sort_order").execute().data) or []
+        return {"banners": [{"id": b["id"], "image_url": b["image_url"],
+                             "link_url": b.get("link_url"), "title": b.get("title")} for b in rows]}
+    except Exception as e:
+        return {"banners": [], "error": str(e)[:150]}
 
 
 # ---------------------------------------------------------------- /leaderboard
@@ -403,13 +408,33 @@ def leaderboard(scope: str = "daily", profile: dict = Depends(get_profile)):
 # ---------------------------------------------------------------- /current-affairs
 @router.get("/current-affairs")
 def current_affairs(profile: dict = Depends(get_profile)):
-    """Affairs feed, gated by plan window:
-       free -> today only; paid -> from purchase date up to today.
-       Admins see everything (for management)."""
-    if profile.get("role") == "admin":
+    """Image-first affairs deck. Never raises — returns [] on any backend hiccup.
+       free -> today only; paid -> from purchase date; admin -> everything."""
+    try:
         rows = (supabase.table("current_affairs").select("*").eq("is_published", True)
-                .order("published_at", desc=True).limit(200).execute().data)
+                .order("published_at", desc=True).limit(150).execute().data) or []
+    except Exception as e:
+        return {"items": [], "plan": profile.get("plan", "free"), "error": str(e)[:150]}
+
+    if profile.get("role") == "admin":
         return {"items": rows, "plan": profile.get("plan", "free")}
+
+    try:
+        plan = effective_plan(profile)
+    except Exception:
+        plan = profile.get("plan", "free") or "free"
+    try:
+        today = datetime.now(timezone.utc).date().isoformat()
+        if plan == "free":
+            rows = [r for r in rows if str(r.get("published_at")) == today]
+        else:
+            start_dt, _e, _p = _plan_window(profile)
+            if start_dt:
+                sd = start_dt.date().isoformat()
+                rows = [r for r in rows if str(r.get("published_at")) >= sd]
+    except Exception:
+        pass  # on any filtering error, just show what we have
+    return {"items": rows, "plan": plan}
 
     plan = effective_plan(profile)
     today = datetime.now(timezone.utc).date().isoformat()
