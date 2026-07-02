@@ -953,7 +953,7 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
   }
 
   async function hydrate() {
-    try { var ca = await api('/api/current-affairs'); CA = ca.items.map(function (i) { return [i.category, i.title, i.body, fmtDate(i.published_at)]; }); renderCA(); if (ROLE === 'admin') renderAdmCA(); } catch (e) { console.warn('affairs', e); }
+    try { var ca = await api('/api/current-affairs'); CA = ca.items.map(function (i) { return [i.category, i.title, i.body, fmtDate(i.published_at), i.image_url || '']; }); renderCA(); if (ROLE === 'admin') renderAdmCA(); } catch (e) { console.warn('affairs', e); }
     if (ROLE === 'admin') {
       try { var cc = await api('/api/concepts'); CONCEPTS = cc.concepts.map(mapConcept); renderAdmConcepts(); } catch (e) {}
       try { var bb = await api('/api/banners'); BANNERS = bb.banners.map(mapBanner); renderAdmBanners(); } catch (e) {}
@@ -965,7 +965,7 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
     try { var q = await api('/api/daily-quiz'); window._serverQuiz = q; } catch (e) {}
     applyRankVisibility();
   }
-  async function refreshAffairs() { try { var ca = await api('/api/current-affairs'); CA = ca.items.map(function (i) { return [i.category, i.title, i.body, fmtDate(i.published_at)]; }); renderCA(); renderAdmCA(); } catch (e) {} }
+  async function refreshAffairs() { try { var ca = await api('/api/current-affairs'); CA = ca.items.map(function (i) { return [i.category, i.title, i.body, fmtDate(i.published_at), i.image_url || '']; }); renderCA(); renderAdmCA(); } catch (e) {} }
 
   /* ---------- overrides: visibility-aware rendering ---------- */
   window.applyRankVisibility = function () {
