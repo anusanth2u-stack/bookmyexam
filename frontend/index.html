@@ -2808,5 +2808,140 @@ quizHome();renderTests();renderCA();renderLB('Daily');renderAdmCA();
 })();
 
 </script>
+
+<script>
+/* __V13__ */
+/* v13 — reliable file capture: retain picked File objects so uploads never "lose" the file */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  window._picked = window._picked || {};
+
+  // Capture every file selection as a retained File (covers click + drag-drop via dispatched change)
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t && t.tagName === 'INPUT' && t.type === 'file' && t.id) {
+      window._picked[t.id] = (t.files && t.files[0]) || null;
+    }
+  }, true);
+
+  function pickedFile(id) { return (window._picked && window._picked[id]) || (el(id) && el(id).files && el(id).files[0]) || null; }
+  function clearPicked(id) {
+    if (window._picked) window._picked[id] = null;
+    var i = el(id); if (i) { try { i.value = ''; } catch (e) {} try { i.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {} }
+  }
+  window._pickedFile = pickedFile; window._clearPicked = clearPicked;
+
+  async function upload(file, folder) {
+    var pth = folder + '/' + Date.now() + '_' + file.name.replace(/[^\w.\-]/g, '_');
+    var up = await window._sb.storage.from('banners').upload(pth, file, { upsert: true });
+    if (up.error) throw up.error;
+    return window._sb.storage.from('banners').getPublicUrl(pth).data.publicUrl;
+  }
+
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    var f = pickedFile('caImg');
+    var editing = window._editAffairId && (window.CA_ADMIN || []).find(function (x) { return x.id === window._editAffairId; });
+    if (!f && !(editing && editing.image)) { alert('Please choose a card image to publish.'); return; }
+    try {
+      var image = null;
+      if (f && window._sb) image = await upload(f, 'affairs');
+      var payload = { category: cat, title: t || 'Current affairs', body: b, published_at: caDate.value };
+      if (image) payload.image_url = image;
+      if (window._editAffairId) {
+        await api('/api/admin/affairs/' + window._editAffairId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editAffairId = null;
+        var btn = document.querySelector('#adm-affairs .fa .btn.pri'); if (btn) btn.textContent = 'Publish card';
+      } else {
+        await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      caTitle.value = caBody.value = '';
+      clearPicked('caImg');
+      if (el('caImgPrev')) el('caImgPrev').style.display = 'none';
+      if (window.flash) flash('caSaved');
+      if (window.loadAffairsAdmin) window.loadAffairsAdmin();
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  };
+
+  window.addConcept = async function () {
+    var title = acTitle.value.trim(), subj = el('acSubj') ? acSubj.value : '', url = acUrl.value.trim(), notes = acNotes.value.trim();
+    if (!title || !url) { alert('Add a title and a YouTube link.'); return; }
+    var access = ['free', 'weekly', 'monthly', 'quarterly', 'yearly'].filter(function (k) { return el('ac_' + k) && el('ac_' + k).checked; });
+    if (!access.length) { alert('Pick at least one plan that can watch it.'); return; }
+    var file = pickedFile('acFile');
+    try {
+      var material = null;
+      if (file && window._sb) material = await upload(file, 'notes');
+      var payload = { title: title, subject: subj, video_url: url, notes: notes, access: access };
+      if (material) payload.material_url = material;
+      if (window._editConceptId) {
+        await api('/api/admin/concepts/' + window._editConceptId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editConceptId = null;
+        var btn = document.querySelector('#adm-concepts .fa .btn.pri'); if (btn) btn.textContent = 'Publish to library';
+      } else {
+        var row = await api('/api/admin/concepts', { method: 'POST', body: JSON.stringify(payload) });
+        if (window.CONCEPTS) CONCEPTS.unshift({ id: row.id, title: row.title, subj: row.subject, vid: row.video_url, notes: row.notes, material: row.material_url, access: row.access });
+      }
+      acTitle.value = acUrl.value = acNotes.value = '';
+      clearPicked('acFile');
+      if (window._loadConcepts) window._loadConcepts(); else if (window.renderAdmConcepts) renderAdmConcepts();
+      if (window.flash) flash('acSaved');
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  };
+})();
+
+</script>
+
+<script>
+/* __V14__ */
+/* v14 — never publish an affair without its image; fail loudly on upload issues */
+(function () {
+  var api = window._api;
+  function el(id) { return document.getElementById(id); }
+  function pickedFile(id) { return (window._picked && window._picked[id]) || (el(id) && el(id).files && el(id).files[0]) || null; }
+
+  async function uploadOrThrow(file, folder) {
+    if (!window._sb || !window._sb.storage) throw new Error('Image uploader not ready. Please refresh the page and sign in again.');
+    var pth = folder + '/' + Date.now() + '_' + file.name.replace(/[^\w.\-]/g, '_');
+    var up = await window._sb.storage.from('banners').upload(pth, file, { upsert: true, cacheControl: '3600' });
+    if (up && up.error) throw new Error('Upload failed: ' + (up.error.message || up.error));
+    var url = window._sb.storage.from('banners').getPublicUrl(pth).data.publicUrl;
+    if (!url) throw new Error('Could not get a public URL for the image.');
+    return url;
+  }
+
+  window.addAffair = async function () {
+    var cat = caCat.value, t = caTitle.value.trim(), b = caBody.value.trim();
+    var f = pickedFile('caImg');
+    var editing = window._editAffairId && (window.CA_ADMIN || []).find(function (x) { return x.id === window._editAffairId; });
+    if (!f && !(editing && editing.image)) { alert('Please choose a card image to publish.'); return; }
+    var btn = document.querySelector('#adm-affairs .fa .btn.pri'); var lbl = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Uploading\u2026'; }
+    try {
+      var image = null;
+      if (f) image = await uploadOrThrow(f, 'affairs');   // if a file is chosen, it MUST upload
+      var payload = { category: cat, title: t || 'Current affairs', body: b, published_at: caDate.value };
+      if (image) payload.image_url = image;
+      if (window._editAffairId) {
+        await api('/api/admin/affairs/' + window._editAffairId, { method: 'PUT', body: JSON.stringify(payload) });
+        window._editAffairId = null;
+      } else {
+        await api('/api/admin/affairs', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      caTitle.value = caBody.value = '';
+      if (window._clearPicked) window._clearPicked('caImg');
+      if (el('caImgPrev')) el('caImgPrev').style.display = 'none';
+      if (window.flash) flash('caSaved');
+      if (window.loadAffairsAdmin) window.loadAffairsAdmin();
+    } catch (e) {
+      alert(e.message || String(e));   // loud, no silent text card
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = lbl || 'Publish card'; }
+    }
+  };
+})();
+
+</script>
 </body>
 </html>
